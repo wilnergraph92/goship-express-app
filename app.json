@@ -1,24 +1,70 @@
 {
   "expo": {
-    "name": "application-mobile",
-    "slug": "application-mobile",
+    "name": "GoShip Express",
+    "slug": "goship-express",
+    "scheme": "goshipexpress",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#ffffff",
+    "primaryColor": "#f4600d",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.goshipexpress.app",
+      "infoPlist": {
+        "CFBundleDisplayName": "GoShip Express",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.goshipexpress.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#061a3f",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-logo.png",
+          "imageWidth": 230,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "L'appareil photo sert à scanner le code-barres de vos colis."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Vos photos servent à joindre la facture d'un achat à une pré-alerte."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#f4600d",
+          "defaultChannel": "colis"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {}
     }
   }
 }
