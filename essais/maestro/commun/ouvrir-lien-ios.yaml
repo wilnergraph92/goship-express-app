@@ -1,20 +1,25 @@
 # Sur iOS, un lien goshipexpress:// ouvert pendant que l'application tourne peut passer
 # par la question du système « Ouvrir dans “GoShip Express” ? » : on l'accepte, comme le
 # ferait le client. Ailleurs (Android, ou iOS sans question), rien ne se passe.
+# Sur un simulateur chargé, la question peut arriver plusieurs secondes après le lien :
+# on la guette deux fois avant de laisser le parcours attendre l'écran du lien.
 # Rangé dans commun/ : `maestro test essais/maestro/` ne lance que les parcours du dossier.
 appId: com.goshipexpress.app
 name: Ouvrir le lien (question d'iOS)
 ---
-# La question arrive après une courte animation
-- waitForAnimationToEnd:
-    timeout: 3000
-- runFlow:
-    when:
-      visible: "Open"
+- repeat:
+    times: 2
     commands:
-      - tapOn: "Open"
-- runFlow:
-    when:
-      visible: "Ouvrir"
-    commands:
-      - tapOn: "Ouvrir"
+      # La question arrive après une courte animation
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - runFlow:
+          when:
+            visible: "Open"
+          commands:
+            - tapOn: "Open"
+      - runFlow:
+          when:
+            visible: "Ouvrir"
+          commands:
+            - tapOn: "Ouvrir"

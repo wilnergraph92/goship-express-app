@@ -53,12 +53,11 @@ name: Parcours client
 - takeScreenshot: captures/2-accueil
 
 # Mes colis
-- tapOn:
-    id: onglet-colis
-- extendedWaitUntil:
-    visible:
-      id: colis-liste
-    timeout: 20000
+- runFlow:
+    file: commun/aller-onglet.yaml
+    env:
+      ONGLET: colis
+      ATTENDU: colis-liste
 - assertVisible:
     id: colis-total
     text: "25"
@@ -89,14 +88,16 @@ name: Parcours client
       id: stat-en-cours
     timeout: 60000
 
-# Liens profonds : son colis s'ouvre ; celui d'un autre client, jamais
+# Liens profonds : son colis s'ouvre ; celui d'un autre client, jamais. Un écran ouvert
+# par un lien a 60 s pour paraître (comme après un lancement) : sur un simulateur iOS
+# chargé, 20 s n'ont pas suffi alors que le bon colis s'affichait peu après.
 - openLink: goshipexpress://colis/${COLIS_MARIE}
 - runFlow:
     file: commun/ouvrir-lien-ios.yaml
 - extendedWaitUntil:
     visible:
       id: detail-numero
-    timeout: 20000
+    timeout: 60000
 - assertVisible:
     id: detail-numero
     text: GSE-1002-HT
@@ -106,7 +107,7 @@ name: Parcours client
 - extendedWaitUntil:
     visible:
       id: etat-introuvable
-    timeout: 20000
+    timeout: 60000
 - assertNotVisible: Colis de Jean 1
 - openLink: goshipexpress://suivi?numero=GSE-1026-HT
 - runFlow:
@@ -114,7 +115,7 @@ name: Parcours client
 - extendedWaitUntil:
     visible:
       id: suivi-public
-    timeout: 20000
+    timeout: 60000
 - assertNotVisible: Colis de Jean 1
 
 # Pré-alerte : confirmée seulement par la base
@@ -124,7 +125,7 @@ name: Parcours client
 - extendedWaitUntil:
     visible:
       id: pa-magasin
-    timeout: 20000
+    timeout: 60000
 - tapOn:
     id: pa-magasin
 - inputText: Amazon
@@ -146,12 +147,11 @@ name: Parcours client
 - takeScreenshot: captures/5-prealerte
 
 # Factures : le solde de la base
-- tapOn:
-    id: onglet-factures
-- extendedWaitUntil:
-    visible:
-      id: factures-solde
-    timeout: 20000
+- runFlow:
+    file: commun/aller-onglet.yaml
+    env:
+      ONGLET: factures
+      ATTENDU: factures-solde
 - extendedWaitUntil:
     visible:
       text: ".*50[.,]00.*"

@@ -1,0 +1,31 @@
+# Aller à un onglet et attendre son écran. Sur un simulateur iOS chargé, le premier
+# toucher juste après un changement d'écran se perd parfois (l'écran reste le même, et
+# l'accueil qui se met à jour masque la perte à Maestro) : on touche de nouveau l'onglet
+# tant que l'écran attendu n'est pas là, comme le ferait le client. Toucher l'onglet déjà
+# ouvert ne fait rien. L'écran attendu reste vérifié à la fin, sans exception.
+#   ONGLET  : nom de l'onglet (colis, factures, compte…)
+#   ATTENDU : identifiant qui prouve que son écran est affiché
+appId: com.goshipexpress.app
+name: Aller à un onglet
+---
+- tapOn:
+    id: onglet-${ONGLET}
+- repeat:
+    while:
+      notVisible:
+        id: ${ATTENDU}
+    times: 3
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - runFlow:
+          when:
+            notVisible:
+              id: ${ATTENDU}
+          commands:
+            - tapOn:
+                id: onglet-${ONGLET}
+- extendedWaitUntil:
+    visible:
+      id: ${ATTENDU}
+    timeout: 30000
