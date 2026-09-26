@@ -16,7 +16,6 @@
     "expo-constants": "~57.0.19",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
-    "expo-image-picker": "~57.0.19",
     "expo-linking": "~57.0.10",
     "expo-localization": "~57.0.2",
     "expo-notifications": "~57.0.20",
@@ -39,7 +38,14 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "essai": "node essais/essai-logique.mjs",
+    "construire:essai": "EXPO_PUBLIC_GOSHIP_ENV=essai EXPO_PUBLIC_SUPABASE_URL=${GOSHIP_URL_ESSAI:-http://localhost:54321} expo export --clear --platform web --output-dir dist-essai && node essais/controle-paquet.mjs dist-essai essai",
+    "essai:web": "npm run construire:essai && node essais/essai-web.mjs",
+    "controle:production": "EXPO_PUBLIC_GOSHIP_ENV=production expo export --clear --platform android --platform ios --output-dir dist && node essais/controle-paquet.mjs dist production"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  }
 }

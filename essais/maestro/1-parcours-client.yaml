@@ -1,0 +1,188 @@
+# Le parcours d'un client, dans la VRAIE application construite (APK Android, app iOS),
+# sur un émulateur ou un simulateur, contre la base d'essai (jamais la vraie base).
+# Lancé par .github/workflows/mobile.yml ; voir README.md, « Essais ».
+#   COLIS_MARIE : identifiant de GSE-1002-HT (colis de Marie)
+#   COLIS_JEAN  : identifiant de GSE-1026-HT (colis de Jean)
+appId: com.goshipexpress.app
+name: Parcours client
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible:
+      id: connexion-email
+    timeout: 90000
+- takeScreenshot: captures/1-connexion
+
+# Mauvais mot de passe : message, pas de plantage
+- tapOn:
+    id: connexion-email
+- inputText: marie@exemple.com
+- tapOn:
+    id: connexion-mdp
+- inputText: mauvais
+# Entrée sur le mot de passe envoie le formulaire (et ferme le clavier) ; hideKeyboard
+# n'est pas fiable sur Android avec un champ React Native
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: connexion-erreur
+    timeout: 20000
+
+# Connexion
+- tapOn:
+    id: connexion-mdp
+- eraseText: 20
+- inputText: marie-essai-1
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: stat-en-cours
+    timeout: 30000
+# Les chiffres de la base (mon_resume) : 24 en cours, 1 à retirer. Une carte est un
+# seul élément accessible (« 24 en cours ») : ses enfants n'existent pas pour Maestro
+- assertVisible:
+    id: stat-en-cours
+    text: "24 .*"
+- assertVisible:
+    id: stat-disponibles
+    text: "1 .*"
+- assertVisible: Marie-Ange Dorvil
+- takeScreenshot: captures/2-accueil
+
+# Mes colis
+- tapOn:
+    id: onglet-colis
+- extendedWaitUntil:
+    visible:
+      id: colis-liste
+    timeout: 20000
+- assertVisible:
+    id: colis-total
+    text: "25"
+- tapOn:
+    id: filtre-livres
+- extendedWaitUntil:
+    visible:
+      id: colis-GSE-1001-HT
+    timeout: 15000
+- takeScreenshot: captures/3-colis
+- tapOn:
+    id: colis-GSE-1001-HT
+- extendedWaitUntil:
+    visible:
+      id: detail-statut
+    timeout: 15000
+- assertVisible:
+    id: detail-numero
+    text: GSE-1001-HT
+- takeScreenshot: captures/4-detail
+- back
+
+# La session reste ouverte après fermeture de l'application (coffre-fort du téléphone)
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: stat-en-cours
+    timeout: 60000
+
+# Liens profonds : son colis s'ouvre ; celui d'un autre client, jamais
+- openLink: goshipexpress://colis/${COLIS_MARIE}
+- runFlow:
+    file: commun/ouvrir-lien-ios.yaml
+- extendedWaitUntil:
+    visible:
+      id: detail-numero
+    timeout: 20000
+- assertVisible:
+    id: detail-numero
+    text: GSE-1002-HT
+- openLink: goshipexpress://colis/${COLIS_JEAN}
+- runFlow:
+    file: commun/ouvrir-lien-ios.yaml
+- extendedWaitUntil:
+    visible:
+      id: etat-introuvable
+    timeout: 20000
+- assertNotVisible: Colis de Jean 1
+- openLink: goshipexpress://suivi?numero=GSE-1026-HT
+- runFlow:
+    file: commun/ouvrir-lien-ios.yaml
+- extendedWaitUntil:
+    visible:
+      id: suivi-public
+    timeout: 20000
+- assertNotVisible: Colis de Jean 1
+
+# Pré-alerte : confirmée seulement par la base
+- openLink: goshipexpress://prealerte
+- runFlow:
+    file: commun/ouvrir-lien-ios.yaml
+- extendedWaitUntil:
+    visible:
+      id: pa-magasin
+    timeout: 20000
+- tapOn:
+    id: pa-magasin
+- inputText: Amazon
+- tapOn:
+    id: pa-contenu
+- inputText: Casque natif
+# Champ d'une ligne : Entrée le quitte et ferme le clavier
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: pa-envoyer
+    direction: DOWN
+- tapOn:
+    id: pa-envoyer
+- extendedWaitUntil:
+    visible:
+      id: pa-message-ok
+    timeout: 20000
+- takeScreenshot: captures/5-prealerte
+
+# Factures : le solde de la base
+- tapOn:
+    id: onglet-factures
+- extendedWaitUntil:
+    visible:
+      id: factures-solde
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      text: ".*50[.,]00.*"
+    timeout: 20000
+- takeScreenshot: captures/6-factures
+
+# Déconnexion : retour à la connexion, aucun écran privé
+- tapOn:
+    id: onglet-compte
+- scrollUntilVisible:
+    element:
+      id: compte-deconnexion
+    direction: DOWN
+# Jusqu'au fond : à peine visible, le bouton passerait sous le « + » central de la
+# barre d'onglets, qui déborde vers le haut, et c'est lui qui recevrait le toucher
+- scroll
+- tapOn:
+    id: compte-deconnexion
+- scrollUntilVisible:
+    element:
+      id: compte-deconnexion-oui
+    direction: DOWN
+- tapOn:
+    id: compte-deconnexion-oui
+- extendedWaitUntil:
+    visible:
+      id: connexion-email
+    timeout: 20000
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: connexion-email
+    timeout: 60000

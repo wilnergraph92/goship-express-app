@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "GoShip Express",
+    "NSCameraUsageDescription": "The camera is used to scan the barcode on your packages."
+  }
+}

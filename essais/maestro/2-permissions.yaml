@@ -1,0 +1,70 @@
+# Appareil photo et notifications, autorisés ou refusés : l'application ne plante pas
+# et dit clairement où elle en est. (Un émulateur n'a pas de vraie caméra : le scan
+# d'un vrai code se vérifie sur un vrai téléphone, voir README.md.)
+appId: com.goshipexpress.app
+name: Permissions
+---
+# Tout refusé
+- launchApp:
+    clearState: true
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible:
+      id: connexion-email
+    timeout: 90000
+- tapOn:
+    id: connexion-email
+- inputText: marie@exemple.com
+- tapOn:
+    id: connexion-mdp
+- inputText: marie-essai-1
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: stat-en-cours
+    timeout: 30000
+- tapOn:
+    id: onglet-colis
+- tapOn:
+    id: colis-scanner
+# Caméra refusée : explication et bouton (autoriser, ou ouvrir les réglages)
+- extendedWaitUntil:
+    visible:
+      id: scanner-refus
+    timeout: 20000
+- takeScreenshot: captures/7-camera-refusee
+- tapOn:
+    id: scanner-fermer
+- tapOn:
+    id: onglet-compte
+# Notifications refusées ou indisponibles : jamais « Activées »
+- extendedWaitUntil:
+    visible:
+      id: compte-notifications
+    timeout: 20000
+- assertNotVisible:
+    id: compte-notifications
+    text: ".*(Activées|On)$"
+- takeScreenshot: captures/8-notifications
+
+# Caméra autorisée : le cadre de visée, ou « appareil photo indisponible » (émulateur
+# sans caméra) — jamais un plantage
+- launchApp:
+    permissions:
+      camera: allow
+- extendedWaitUntil:
+    visible:
+      id: onglet-colis
+    timeout: 60000
+- tapOn:
+    id: onglet-colis
+- tapOn:
+    id: colis-scanner
+- extendedWaitUntil:
+    visible:
+      text: ".*(Place the barcode|Placez le code-barres|camera is unavailable|appareil photo est indisponible|Coloque el código|kòd-ba).*"
+    timeout: 20000
+- takeScreenshot: captures/9-camera-autorisee
+- tapOn:
+    id: scanner-fermer

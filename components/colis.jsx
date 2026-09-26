@@ -1,11 +1,12 @@
 // Éléments propres aux colis : puce de statut, frise des étapes, carte de la liste.
 
+import { memo } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Link } from 'expo-router';
 import { couleurs, polices, rayons, ombres, STATUTS, ETAPES } from '../lib/theme';
 import { Texte, Mono } from './ui';
 import { useLangue } from '../lib/i18n';
-import { dateRelative, libelleStatut, libelleService, poids } from '../lib/format';
+import { dateRelative, libelleStatut, libelleService, poids, etapeDe } from '../lib/format';
 
 export function PuceStatut({ statut, style }) {
   const { t, langue } = useLangue();
@@ -17,10 +18,13 @@ export function PuceStatut({ statut, style }) {
   );
 }
 
-export function Frise({ statut, hauteur = 4 }) {
+// La frise : l'étape vient du statut, ou de la dernière étape atteinte pour un
+// colis en « action requise » (la barre est alors rouge)
+export function Frise({ statut, historique, hauteur = 4 }) {
   const s = STATUTS[statut] || STATUTS.recu;
+  const etape = etapeDe(statut, historique);
   return (
-    <View style={{ flexDirection: 'row', gap: 3 }}>
+    <View style={{ flexDirection: 'row', gap: 3 }} accessible={false} importantForAccessibility="no-hide-descendants">
       {Array.from({ length: ETAPES }, (_, i) => i + 1).map((n) => (
         <View
           key={n}
@@ -28,7 +32,7 @@ export function Frise({ statut, hauteur = 4 }) {
             flex: 1,
             height: hauteur,
             borderRadius: hauteur / 2,
-            backgroundColor: n <= s.etape ? s.barre : '#e6ebf5',
+            backgroundColor: n <= etape ? s.barre : '#e6ebf5',
           }}
         />
       ))}
@@ -36,31 +40,40 @@ export function Frise({ statut, hauteur = 4 }) {
   );
 }
 
-export function FriseLegendee({ statut }) {
+export function FriseLegendee({ statut, historique }) {
   const { t } = useLangue();
   const s = STATUTS[statut] || STATUTS.recu;
+  const etape = etapeDe(statut, historique);
+  const texte = t('de.etape_sur', { n: etape, total: ETAPES });
   return (
-    <View style={{ gap: 9 }}>
+    <View style={{ gap: 9 }} accessible accessibilityLabel={`${texte} · ${t('etape.' + etape)}`}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Texte taille={11.5} style={{ fontFamily: polices.mono, color: couleurs.texteFaible, letterSpacing: 0.6 }}>
-          {t('de.etape_sur', { n: s.etape, total: ETAPES })}
+          {texte}
         </Texte>
-        <Texte gras taille={12} style={{ color: s.couleur }}>{t('etape.' + s.etape)}</Texte>
+        <Texte gras taille={12} style={{ color: s.couleur }}>{t('etape.' + etape)}</Texte>
       </View>
-      <Frise statut={statut} hauteur={5} />
+      <Frise statut={statut} historique={historique} hauteur={5} />
     </View>
   );
 }
 
-export function CarteColis({ colis }) {
+// memo : une longue liste ne redessine pas toutes ses cartes à chaque page chargée
+export const CarteColis = memo(function CarteColis({ colis }) {
   const { t, langue } = useLangue();
   const details = [colis.expediteur, poids(colis.poids_lb, langue), libelleService(colis.service, langue)]
-    .filter(Boolean)
+    .filter((v) => v && v !== '—')
     .join(' · ');
+  const statut = libelleStatut(colis.statut, langue);
 
   return (
     <Link href={'/colis/' + colis.id} asChild>
-      <Pressable style={({ pressed }) => [styles.carte, ombres.carte, pressed && { opacity: 0.9 }]}>
+      <Pressable
+        style={({ pressed }) => [styles.carte, ombres.carte, pressed && { opacity: 0.9 }]}
+        accessibilityRole="button"
+        accessibilityLabel={[colis.numero, statut, colis.description].filter(Boolean).join(', ')}
+        testID={'colis-' + colis.numero}
+      >
         <View style={styles.ligneHaut}>
           <Mono taille={13}>{colis.numero}</Mono>
           <PuceStatut statut={colis.statut} />
@@ -78,7 +91,7 @@ export function CarteColis({ colis }) {
       </Pressable>
     </Link>
   );
-}
+});
 
 const styles = StyleSheet.create({
   carte: {
