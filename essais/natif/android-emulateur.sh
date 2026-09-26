@@ -8,6 +8,12 @@ set -euo pipefail
 essai="$1"; production="$2"; sortie="$3"
 mkdir -p "$sortie"
 adb logcat -c || true
+# Émulateur logiciel, donc lent : Android affiche parfois « … isn't responding » par-dessus
+# l'application (le lanceur, pas GoShip). On masque ces fenêtres et on laisse le système
+# finir de démarrer ; un plantage de l'application reste visible dans le journal (FATAL).
+adb shell settings put global hide_error_dialogs 1 || true
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS > /dev/null 2>&1 || true
+sleep 20
 
 echo "== Application d'essai"
 adb install -r "$essai"

@@ -138,5 +138,52 @@ function fichiers(dossiers, exclure) {
   return out;
 }
 
+console.log('F. Le coffre de la session (lib/coffre.js)');
+// coffre.js chargé avec de faux modules : un stockage ordinaire et un trousseau qui
+// marche, ou qui refuse tout (application de simulateur non signée, vieil appareil)
+async function coffreAvec(trousseauEnPanne) {
+  const ordinaire = new Map();
+  const trousseau = new Map();
+  const panne = () => { if (trousseauEnPanne) throw new Error('errSecMissingEntitlement'); };
+  globalThis.__coffre = {
+    Platform: { OS: 'ios' },
+    AsyncStorage: {
+      getItem: async (k) => (ordinaire.has(k) ? ordinaire.get(k) : null),
+      setItem: async (k, v) => { ordinaire.set(k, v); },
+      removeItem: async (k) => { ordinaire.delete(k); },
+    },
+    SecureStore: {
+      getItemAsync: async (k) => { panne(); return trousseau.has(k) ? trousseau.get(k) : null; },
+      setItemAsync: async (k, v) => { panne(); trousseau.set(k, v); },
+      deleteItemAsync: async (k) => { panne(); trousseau.delete(k); },
+    },
+  };
+  const source = lire('lib/coffre.js')
+    .replace(/^import .*$/gm, '')
+    .replace(/^/, 'const { Platform, AsyncStorage, SecureStore } = globalThis.__coffre;\n');
+  const m = await import('data:text/javascript;base64,' + Buffer.from(source + `\n// ${Math.random()}`).toString('base64'));
+  return { coffre: m.coffre, ordinaire, trousseau };
+}
+const session = JSON.stringify({ access_token: 'x'.repeat(2500), user: { id: 'u' } }); // plus d'un morceau
+{
+  const { coffre, ordinaire, trousseau } = await coffreAvec(false);
+  await coffre.setItem('sb-auth', session);
+  verifier('trousseau : session relue entière (plusieurs morceaux)', await coffre.getItem('sb-auth'), session);
+  verifier('trousseau : aucune copie en clair', [ordinaire.size, trousseau.get('sb-auth.n')], [0, '2']);
+  ordinaire.set('ancienne', 'jeton'); // session d'une ancienne version, en clair
+  verifier('ancienne session en clair : lue', await coffre.getItem('ancienne'), 'jeton');
+  verifier('… puis déplacée au trousseau', [ordinaire.has('ancienne'), await coffre.getItem('ancienne')], [false, 'jeton']);
+  await coffre.removeItem('sb-auth');
+  verifier('déconnexion : plus rien', await coffre.getItem('sb-auth'), null);
+}
+{
+  const { coffre } = await coffreAvec(true);
+  await coffre.setItem('sb-auth', session);
+  const lectures = [await coffre.getItem('sb-auth'), await coffre.getItem('sb-auth'), await coffre.getItem('sb-auth')];
+  verifier('trousseau en panne : la session reste lisible, lecture après lecture', lectures.every((l) => l === session), true);
+  await coffre.removeItem('sb-auth');
+  verifier('trousseau en panne : la déconnexion efface quand même', await coffre.getItem('sb-auth'), null);
+}
+
 console.log(`${resultats.length} vérifications, ${resultats.filter(Boolean).length} réussies.`);
 process.exit(resultats.every(Boolean) ? 0 : 1);

@@ -262,11 +262,11 @@ jobs:
         if: matrix.env == 'essai'
         run: |
           bash essais/natif/depot-site.sh
-          # Même PostgREST que les essais Linux ; pour Mac il n'existe qu'en x64 (Rosetta).
-          # S'il ne démarre pas, celui de Homebrew (plus récent) prend le relais.
-          curl -sSL "https://github.com/PostgREST/postgrest/releases/download/$POSTGREST_VERSION/postgrest-$POSTGREST_VERSION-macos-x64.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
-          postgrest="$RUNNER_TEMP/postgrest"
-          "$postgrest" --version || { brew install postgrest; postgrest="$(command -v postgrest)"; }
+          # PostgREST de Homebrew (16.x) : le binaire Mac de la 12 ne vise que les Mac Intel
+          # (il cherche libpq dans /usr/local). L'essai navigateur passe aussi avec la 16.
+          brew install postgrest
+          postgrest="$(command -v postgrest)"
+          "$postgrest" --version
           # pgserver 0.1.4 n'a de paquets que jusqu'à Python 3.12 (setup-python plus haut)
           python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install pgserver==0.1.4
           POSTGREST="$postgrest" nohup "$RUNNER_TEMP/venv/bin/python" site/outils/essais-services/essai-mobile.py --serveur > "$RUNNER_TEMP/base.log" 2>&1 &
