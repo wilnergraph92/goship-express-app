@@ -1,40 +1,58 @@
-// Factures et solde à payer.
+// Factures, paiements et solde.
+//
+// Tout montant vient de la base : le total arrêté à la création (montant_usd), le payé,
+// le solde et l'état de chaque facture (mes_factures), le solde de tout le compte
+// (mon_resume). L'application n'additionne rien et ne décide pas si une facture est
+// payée : c'est l'équipe qui enregistre un paiement, et la base qui en tire l'état.
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import config from '../../config';
-import { couleurs, rayons, ombres } from '../../lib/theme';
-import { Titre, Texte, Mono, Etiquette, Bouton, Vide } from '../../components/ui';
+import { couleurs, rayons, ombres, COULEURS_ETAT } from '../../lib/theme';
+import { Titre, Texte, Mono, Etiquette, Bouton, Vide, Chargement, EtatErreur, Bandeau } from '../../components/ui';
 import { useLangue } from '../../lib/i18n';
-import { mesFactures } from '../../lib/api';
+import { useSession } from '../../lib/session';
+import { useDonnees } from '../../lib/useDonnees';
+import { mesFactures, monResume, factureOuverte, surveiller } from '../../lib/api';
 import { dateCourte, montant } from '../../lib/format';
 
 export default function Factures() {
   if (!config.modules.factures) return <Redirect href="/(onglets)" />;
+  return <ListeFactures />;
+}
 
+function ListeFactures() {
   const { t, langue } = useLangue();
+  const { profil } = useSession();
   const marges = useSafeAreaInsets();
-  const [factures, setFactures] = useState([]);
   const [onglet, setOnglet] = useState('a_payer');
-  const [rafraichit, setRafraichit] = useState(false);
+  const premier = useRef(true);
 
-  const charger = useCallback(async () => {
-    try {
-      setFactures(await mesFactures());
-    } catch (e) {
-      setFactures([]); // la table n'existe pas encore
-    }
+  const { donnees, erreur, recharger, rafraichit, tirer, chargement } = useDonnees(async () => {
+    const [factures, resume] = await Promise.all([mesFactures(), monResume()]);
+    return { factures, totaux: resume && resume.factures };
   }, []);
 
-  useFocusEffect(useCallback(() => { charger(); }, [charger]));
+  useFocusEffect(useCallback(() => {
+    if (premier.current) { premier.current = false; return; }
+    recharger();
+  }, [recharger]));
+  useEffect(() => surveiller(profil?.id, recharger), [profil?.id, recharger]);
 
-  const aPayer = factures.filter((f) => f.statut === 'a_payer');
-  const payees = factures.filter((f) => f.statut === 'payee');
-  const solde = aPayer.reduce((total, f) => total + Number(f.montant_usd || 0), 0);
-  const liste = onglet === 'a_payer' ? aPayer : payees;
+  const factures = donnees ? donnees.factures : [];
+  const totaux = donnees ? donnees.totaux : null;
+  const groupes = {
+    a_payer: factures.filter(factureOuverte),
+    payee: factures.filter((f) => f.statut !== 'annulee' && !factureOuverte(f)),
+    annulee: factures.filter((f) => f.statut === 'annulee'),
+  };
+  const liste = groupes[onglet] || [];
+  const solde = totaux ? Number(totaux.solde_usd) : 0;
+  const ONGLETS = [['a_payer', t('fa.a_payer')], ['payee', t('fa.payees')]]
+    .concat(groupes.annulee.length ? [['annulee', t('fa.annulees')]] : []);
 
   return (
     <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
@@ -45,46 +63,50 @@ export default function Factures() {
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 30 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={rafraichit}
-            onRefresh={async () => { setRafraichit(true); await charger(); setRafraichit(false); }}
-            tintColor={couleurs.accent}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={rafraichit} onRefresh={tirer} tintColor={couleurs.accent} />}
       >
         <View style={[styles.carteSolde, ombres.carte]}>
           <Etiquette>{t('fa.solde')}</Etiquette>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 6 }}>
-            <Titre taille={34}>{montant(solde, langue)}</Titre>
-            {aPayer.length > 0 ? (
+            <Titre taille={34} testID="factures-solde">{totaux ? montant(totaux.solde_usd, langue) : '—'}</Titre>
+            {groupes.a_payer.length > 0 ? (
               <View style={styles.pucePaiement}>
-                <Texte gras taille={11.5} style={{ color: '#c4500b' }}>{aPayer.length} {t('fa.en_attente')}</Texte>
+                <Texte gras taille={11.5} style={{ color: '#c4500b' }}>{groupes.a_payer.length} {t('fa.en_attente')}</Texte>
               </View>
             ) : null}
           </View>
+          {totaux && Number(totaux.montant_en_retard) > 0 ? (
+            <Texte gras taille={12.5} style={{ color: '#b91c1c', marginTop: 4 }}>
+              {t('ac.en_retard', { montant: montant(totaux.montant_en_retard, langue) })}
+            </Texte>
+          ) : null}
           <Bouton
             titre={t('fa.payer')}
             icone="credit-card"
             onPress={() => router.push('/paiement')}
-            desactive={aPayer.length === 0}
-            style={{ marginTop: 15, height: 52 }}
+            desactive={!(solde > 0)}
+            style={{ marginTop: 15, minHeight: 52 }}
+            testID="factures-payer"
           />
           <Texte doux taille={11.5} style={{ marginTop: 11, textAlign: 'center' }}>{t('fa.moyens')}</Texte>
         </View>
 
+        {donnees ? <Bandeau erreur={erreur} onReessayer={recharger} /> : null}
+
         <View style={{ flexDirection: 'row', gap: 8, marginHorizontal: 18, marginTop: 18 }}>
-          {[['a_payer', t('fa.a_payer')], ['payee', t('fa.payees')]].map(([id, nom]) => {
+          {ONGLETS.map(([id, nom]) => {
             const actif = onglet === id;
             return (
               <Pressable
                 key={id}
                 onPress={() => setOnglet(id)}
                 accessibilityRole="button"
+                accessibilityState={{ selected: actif }}
                 style={[
                   styles.onglet,
                   actif ? { backgroundColor: couleurs.nuit } : { backgroundColor: couleurs.carte, borderWidth: 1, borderColor: couleurs.bord },
                 ]}
+                testID={'factures-onglet-' + id}
               >
                 <Texte gras taille={12.5} style={{ color: actif ? '#ffffff' : couleurs.texteDoux }}>{nom}</Texte>
               </Pressable>
@@ -92,39 +114,55 @@ export default function Factures() {
           })}
         </View>
 
-        {liste.length === 0 ? (
+        {chargement ? (
+          <Chargement />
+        ) : !donnees ? (
+          <EtatErreur erreur={erreur} onReessayer={recharger} />
+        ) : liste.length === 0 ? (
           <Vide icone="file-text" titre={t('fa.vide')} />
         ) : (
           <View style={{ gap: 11, marginHorizontal: 18, marginTop: 13 }}>
-            {liste.map((f) => (
-              <Pressable
-                key={f.id}
-                onPress={() => (f.statut === 'a_payer' ? router.push({ pathname: '/paiement', params: { facture: f.id } }) : null)}
-                accessibilityRole="button"
-                style={[styles.carte, ombres.carte]}
-              >
-                <View style={[styles.rond, { backgroundColor: f.statut === 'payee' ? 'rgba(14,159,110,0.13)' : couleurs.accentDoux }]}>
-                  <Feather name={f.statut === 'payee' ? 'check' : 'file-text'} size={19} color={f.statut === 'payee' ? couleurs.vert : couleurs.accent} />
-                </View>
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Mono taille={13}>{f.numero}</Mono>
-                  <Texte doux taille={12.5}>
-                    {dateCourte(f.cree_le, langue)}
-                    {f.facture_lignes?.length ? ` · ${f.facture_lignes.length} ${t('fa.colis')}` : ''}
-                  </Texte>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                  <Titre taille={16}>{montant(f.montant_usd, langue)}</Titre>
-                  <Texte gras taille={11} style={{ color: f.statut === 'payee' ? couleurs.vert : '#c4500b' }}>
-                    {f.statut === 'payee' ? t('fa.payee') : t('fa.a_payer')}
-                  </Texte>
-                </View>
-              </Pressable>
-            ))}
+            {liste.map((f) => <CarteFacture key={f.id} facture={f} />)}
           </View>
         )}
       </ScrollView>
     </View>
+  );
+}
+
+function CarteFacture({ facture: f }) {
+  const { t, langue } = useLangue();
+  const etat = f.statut === 'annulee' ? 'annulee' : (f.etat || f.statut);
+  const c = COULEURS_ETAT[etat] || COULEURS_ETAT.a_payer;
+  const ouverte = factureOuverte(f);
+  return (
+    <Pressable
+      onPress={() => router.push('/facture/' + f.id)}
+      accessibilityRole="button"
+      accessibilityLabel={[f.numero, t('fa.etat.' + etat), montant(f.montant_usd, langue)].join(', ')}
+      style={[styles.carte, ombres.carte]}
+      testID={'facture-' + f.numero}
+    >
+      <View style={[styles.rond, { backgroundColor: c.fond }]}>
+        <Feather name={c.icone} size={19} color={c.texte} />
+      </View>
+      <View style={{ flex: 1, gap: 3 }}>
+        <Mono taille={13}>{f.numero}</Mono>
+        <Texte doux taille={12.5}>
+          {dateCourte(f.cree_le, langue)}
+          {f.lignes?.length ? ` · ${f.lignes.length} ${t('fa.colis')}` : ''}
+        </Texte>
+        {ouverte && Number(f.paye_usd) > 0 ? (
+          <Texte doux taille={12}>{t('fa.paye')} {montant(f.paye_usd, langue)} · {t('fa.reste')} {montant(f.solde_usd, langue)}</Texte>
+        ) : null}
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+        <Titre taille={16} testID={'facture-' + f.numero + '-montant'}>
+          {montant(ouverte ? f.solde_usd : f.montant_usd, langue)}
+        </Titre>
+        <Texte gras taille={11} style={{ color: c.texte }}>{t('fa.etat.' + etat)}</Texte>
+      </View>
+    </Pressable>
   );
 }
 
@@ -141,7 +179,7 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   pucePaiement: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: rayons.pastille, backgroundColor: couleurs.accentDoux },
-  onglet: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: rayons.pastille },
+  onglet: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: rayons.pastille, minHeight: 40, justifyContent: 'center' },
   carte: {
     flexDirection: 'row',
     alignItems: 'center',

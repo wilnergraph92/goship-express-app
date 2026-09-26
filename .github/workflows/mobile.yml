@@ -1,0 +1,269 @@
+# ==========================================================================
+#  Application mobile GoShip Express (Android, iOS)
+# ==========================================================================
+#  À chaque changement, sur de vraies machines :
+#    1. essais sans appareil : logique, traductions, sécurité (essai-logique) ;
+#       base d'essai et règles de sécurité réelles (essai-mobile.py du site) ;
+#       l'application de bout en bout dans un navigateur (essai-web) ;
+#    2. Android : APK et AAB de PRODUCTION (ceux des boutiques) et APK d'ESSAI,
+#       construits séparément, chacun contrôlé (bonne base, aucun secret,
+#       permissions) ; puis, dans un émulateur, les parcours Maestro sur l'APK
+#       d'essai et le lancement de l'APK de production ;
+#    3. iOS : application de PRODUCTION pour iPhone (non signée : il faut le
+#       compte Apple de GoShip Express pour signer) et application d'ESSAI pour
+#       le simulateur, avec les mêmes parcours Maestro.
+#  Tous les essais parlent à une base jetable (outils/essais-services/essai-mobile.py
+#  du dépôt du site), jamais à la vraie base. Ce workflow ne publie rien.
+#  Les builds des boutiques, signés, se font avec EAS (eas.json, README.md).
+# ==========================================================================
+
+name: Application mobile
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPO_NO_TELEMETRY: 1
+  CI: 1
+  POSTGREST_VERSION: v12.2.3
+
+jobs:
+  # ---- 1. Essais sans appareil -------------------------------------------------
+  essais:
+    name: Essais (logique, base, navigateur)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dépôt du site (migrations et base d'essai)
+        run: bash essais/natif/depot-site.sh
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: npm ci
+      - name: Logique, traductions, sécurité
+        run: npm run essai
+        env: { GOSHIP_SITE: site }
+      - name: Base d'essai et PostgREST
+        run: |
+          pip install pgserver==0.1.4
+          curl -sSL "https://github.com/PostgREST/postgrest/releases/download/$POSTGREST_VERSION/postgrest-$POSTGREST_VERSION-linux-static-x64.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
+          echo "POSTGREST=$RUNNER_TEMP/postgrest" >> "$GITHUB_ENV"
+      - name: Isolation des clients, pré-alertes, factures (vraies règles de sécurité)
+        run: python3 site/outils/essais-services/essai-mobile.py
+      - name: Base d'essai allumée pour l'application
+        run: |
+          nohup python3 site/outils/essais-services/essai-mobile.py --serveur > "$RUNNER_TEMP/base.log" 2>&1 &
+          for i in $(seq 1 120); do grep -q "prête" "$RUNNER_TEMP/base.log" && break; sleep 2; done
+          cat "$RUNNER_TEMP/base.log"
+      - name: Navigateur
+        run: npx playwright-core install --with-deps chromium
+      - name: L'application de bout en bout (navigateur)
+        run: npm run essai:web
+        env: { GOSHIP_CAPTURES: '1' }
+      - name: Code des applications de production (bonne base, aucun secret)
+        run: npm run controle:production
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Captures-navigateur
+          path: essais/captures/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ---- 2. Android -----------------------------------------------------------------
+  android-construire:
+    name: Android — ${{ matrix.env }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: production
+            url: ''
+            gradle: ':app:assembleRelease :app:bundleRelease'
+          - env: essai
+            url: http://10.0.2.2:54321
+            gradle: ':app:assembleRelease'
+    env:
+      EXPO_PUBLIC_GOSHIP_ENV: ${{ matrix.env }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ matrix.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Projet Android (expo prebuild)
+        run: npx expo prebuild --platform android --clean --no-install
+      - name: Essai seulement — HTTP vers la base d'essai de la machine
+        if: matrix.env == 'essai'
+        run: |
+          # Jamais dans l'application de production : seulement dans cet APK d'essai
+          sed -i 's/<application /<application android:usesCleartextTraffic="true" /' android/app/src/main/AndroidManifest.xml
+          grep -c 'usesCleartextTraffic="true"' android/app/src/main/AndroidManifest.xml
+      - name: Construire
+        working-directory: android
+        run: ./gradlew ${{ matrix.gradle }} --no-daemon
+      - name: Contrôler l'APK (base, secrets, permissions, signature)
+        run: |
+          v=$(node -p "require('./app.json').expo.version")
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          mkdir -p sortie
+          cp "$apk" "sortie/GoShip-Express-$v-android-${{ matrix.env }}.apk"
+          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
+            cp android/app/build/outputs/bundle/release/app-release.aab "sortie/GoShip-Express-$v-android-${{ matrix.env }}.aab"
+          fi
+          unzip -p "$apk" assets/index.android.bundle > sortie/index.android.bundle
+          node essais/controle-paquet.mjs sortie/index.android.bundle ${{ matrix.env }}
+          rm sortie/index.android.bundle
+          outils=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$outils/aapt2" dump badging "$apk" | grep -E "^package:|sdkVersion|targetSdkVersion|application-label:"
+          "$outils/aapt2" dump permissions "$apk" | tee sortie/permissions.txt
+          for p in RECORD_AUDIO SYSTEM_ALERT_WINDOW READ_EXTERNAL_STORAGE WRITE_EXTERNAL_STORAGE ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION READ_CONTACTS; do
+            if grep -q "android.permission.$p'" sortie/permissions.txt; then echo "Permission inutile : $p"; exit 1; fi
+          done
+          grep -q "android.permission.CAMERA'" sortie/permissions.txt
+          "$outils/apksigner" verify --print-certs "$apk" | head -3
+          ls -la sortie
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GoShip-Express-Android-${{ matrix.env }}
+          path: sortie/
+          retention-days: 30
+
+  android-essais:
+    name: Android — émulateur (Maestro)
+    needs: android-construire
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dépôt du site (base d'essai)
+        run: bash essais/natif/depot-site.sh
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: actions/download-artifact@v4
+        with: { pattern: GoShip-Express-Android-*, path: apk, merge-multiple: true }
+      - name: Base d'essai allumée
+        run: |
+          pip install pgserver==0.1.4
+          curl -sSL "https://github.com/PostgREST/postgrest/releases/download/$POSTGREST_VERSION/postgrest-$POSTGREST_VERSION-linux-static-x64.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
+          POSTGREST="$RUNNER_TEMP/postgrest" nohup python3 site/outils/essais-services/essai-mobile.py --serveur > "$RUNNER_TEMP/base.log" 2>&1 &
+          for i in $(seq 1 120); do grep -q "prête" "$RUNNER_TEMP/base.log" && break; sleep 2; done
+          cat "$RUNNER_TEMP/base.log"
+      - name: Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Accélération matérielle de l'émulateur
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Émulateur Android 14 — parcours et lancement
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: bash essais/natif/android-emulateur.sh "$(ls apk/*-essai.apk)" "$(ls apk/*-production.apk)" "$PWD/sortie-android"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Essais-Android-emulateur
+          path: sortie-android/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ---- 3. iOS -----------------------------------------------------------------------
+  ios:
+    name: iOS — ${{ matrix.nom }}
+    runs-on: macos-15
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nom: iPhone (production, non signée)
+            env: production
+            url: ''
+            sdk: iphoneos
+            destination: generic/platform=iOS
+            dossier: Release-iphoneos
+          - nom: simulateur (essai, Maestro)
+            env: essai
+            url: http://localhost:54321
+            sdk: iphonesimulator
+            destination: generic/platform=iOS Simulator
+            dossier: Release-iphonesimulator
+    env:
+      EXPO_PUBLIC_GOSHIP_ENV: ${{ matrix.env }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ matrix.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Projet iOS (expo prebuild, CocoaPods)
+        run: npx expo prebuild --platform ios --clean
+      - name: Construire
+        run: |
+          xcodebuild -version
+          xcodebuild -workspace ios/GoShipExpress.xcworkspace -scheme GoShipExpress -configuration Release \
+            -sdk ${{ matrix.sdk }} -destination '${{ matrix.destination }}' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -quiet build
+      - name: Contrôler l'application (base, secrets, version, permissions)
+        run: |
+          app="build/Build/Products/${{ matrix.dossier }}/GoShipExpress.app"
+          node essais/controle-paquet.mjs "$app/main.jsbundle" ${{ matrix.env }}
+          plutil -p "$app/Info.plist" | grep -E "CFBundleIdentifier|CFBundleShortVersionString|CFBundleVersion|MinimumOSVersion|NS[A-Za-z]*UsageDescription|NSAllowsArbitraryLoads"
+          if plutil -p "$app/Info.plist" | grep -qE "NSMicrophoneUsageDescription|NSPhotoLibraryUsageDescription|NSLocation|NSContacts|NSFaceIDUsageDescription"; then echo "Autorisation inutile demandée"; exit 1; fi
+          lipo -archs "$app/GoShipExpress"
+          v=$(node -p "require('./app.json').expo.version")
+          mkdir -p sortie
+          ditto -c -k --keepParent "$app" "sortie/GoShip-Express-$v-ios-${{ matrix.env }}-${{ matrix.sdk }}.zip"
+      - name: Simulateur — base d'essai, Maestro
+        if: matrix.env == 'essai'
+        run: |
+          bash essais/natif/depot-site.sh
+          brew install postgrest
+          python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install pgserver==0.1.4
+          POSTGREST="$(command -v postgrest)" nohup "$RUNNER_TEMP/venv/bin/python" site/outils/essais-services/essai-mobile.py --serveur > "$RUNNER_TEMP/base.log" 2>&1 &
+          for i in $(seq 1 120); do grep -q "prête" "$RUNNER_TEMP/base.log" && break; sleep 2; done
+          cat "$RUNNER_TEMP/base.log"
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          export PATH="$HOME/.maestro/bin:$PATH"
+          appareil=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$appareil"
+          xcrun simctl bootstatus "$appareil" -b
+          xcrun simctl install "$appareil" "build/Build/Products/Release-iphonesimulator/GoShipExpress.app"
+          bash essais/natif/maestro.sh ios "$PWD/sortie-ios"
+          xcrun simctl io "$appareil" screenshot "$PWD/sortie-ios/fin.png" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: GoShip-Express-iOS-${{ matrix.env }}
+          path: |
+            sortie/
+            sortie-ios/
+          if-no-files-found: ignore
+          retention-days: 30

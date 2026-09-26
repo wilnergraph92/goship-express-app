@@ -14,8 +14,10 @@
       "bundleIdentifier": "com.goshipexpress.app",
       "infoPlist": {
         "CFBundleDisplayName": "GoShip Express",
-        "ITSAppUsesNonExemptEncryption": false
-      }
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleAllowMixedLocalizations": true
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.goshipexpress.app",
@@ -24,7 +26,15 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "versionCode": 1,
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -33,7 +43,12 @@
     "plugins": [
       "expo-router",
       "expo-localization",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -46,13 +61,10 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "L'appareil photo sert à scanner le code-barres de vos colis."
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Vos photos servent à joindre la facture d'un achat à une pré-alerte."
+          "cameraPermission": "L'appareil photo sert à scanner le code-barres de vos colis.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
         }
       ],
       [
@@ -65,6 +77,11 @@
     ],
     "extra": {
       "router": {}
+    },
+    "locales": {
+      "fr": "./langues/fr.json",
+      "en": "./langues/en.json",
+      "es": "./langues/es.json"
     }
   }
 }

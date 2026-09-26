@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Essais : version web construite pour la base d’essai, captures
+dist-essai/
+essais/captures/

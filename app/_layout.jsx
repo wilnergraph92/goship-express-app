@@ -1,8 +1,16 @@
 // Point d'entrée : polices, langue, session, puis aiguillage vers la connexion ou l'application.
+//
+//   Lancement (logo) → session ?  non → Connexion
+//                                 oui → Accueil
+//
+// L'aiguillage suit l'état de la session : après une déconnexion (voulue ou non), aucun
+// écran privé ne reste accessible, même par le bouton « retour ». Un lien ou une
+// notification ouverts sans être connecté (goshipexpress://colis/…) mènent à leur
+// écran juste après la connexion.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -17,33 +25,40 @@ import { IBMPlexMono_600SemiBold } from '@expo-google-fonts/ibm-plex-mono/600Sem
 
 import { FournisseurLangue, useLangue } from '../lib/i18n';
 import { FournisseurSession, useSession } from '../lib/session';
-import { activerNotifications, useOuvertureParNotification } from '../lib/notifications';
+import { activerNotifications, useOuvertureParNotification, useSuiviJeton } from '../lib/notifications';
 import { couleurs } from '../lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+const PUBLICS = ['connexion', 'inscription'];
+// Écrans où un lien peut mener après la connexion
+const DESTINATION = /^\/(colis\/[0-9a-f-]{36}|suivi|facture\/[0-9a-f-]{36}|agences|colis|factures|prealerte|compte)$/i;
 
 function Aiguillage() {
   const { pret, connecte } = useSession();
   const { langue } = useLangue();
   const segments = useSegments();
+  const chemin = usePathname();
   const router = useRouter();
+  const apresConnexion = useRef(null);
 
-  useOuvertureParNotification();
-
-  // L'écran d'accueil (logo sur fond blanc) reste affiché au moins le temps d'être vu
-  const [delaiPasse, setDelaiPasse] = useState(false);
-  useEffect(() => {
-    const minuteur = setTimeout(() => setDelaiPasse(true), 1400);
-    return () => clearTimeout(minuteur);
-  }, []);
+  useOuvertureParNotification(connecte);
+  useSuiviJeton(connecte, langue);
 
   useEffect(() => {
-    if (!pret || !delaiPasse) return;
+    if (!pret) return;
     SplashScreen.hideAsync().catch(() => {});
-    const dansLApplication = segments[0] === '(onglets)' || segments[0] === 'colis' || segments[0] === 'agences' || segments[0] === 'paiement' || segments[0] === 'scanner';
-    if (!connecte && dansLApplication) router.replace('/connexion');
-    else if (connecte && (segments[0] === 'connexion' || segments[0] === 'inscription' || segments.length === 0)) router.replace('/(onglets)');
-  }, [pret, delaiPasse, connecte, segments, router]);
+    const publique = segments.length === 0 || PUBLICS.indexOf(segments[0]) >= 0;
+    if (!connecte && !publique) {
+      if (DESTINATION.test(chemin)) apresConnexion.current = chemin;
+      router.replace('/connexion');
+    } else if (connecte && publique) {
+      const cible = apresConnexion.current;
+      apresConnexion.current = null;
+      router.replace('/(onglets)');
+      if (cible) setTimeout(() => router.push(cible), 0);
+    }
+  }, [pret, connecte, segments, chemin, router]);
 
   useEffect(() => {
     if (connecte) activerNotifications(langue).catch(() => {});
@@ -52,9 +67,11 @@ function Aiguillage() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: couleurs.fond } }}>
       <Stack.Screen name="(onglets)" />
-      <Stack.Screen name="connexion" />
+      <Stack.Screen name="connexion" options={{ gestureEnabled: false }} />
       <Stack.Screen name="inscription" />
       <Stack.Screen name="colis/[id]" />
+      <Stack.Screen name="facture/[id]" />
+      <Stack.Screen name="suivi" />
       <Stack.Screen name="agences" />
       <Stack.Screen name="paiement" />
       <Stack.Screen name="scanner" options={{ presentation: 'modal' }} />
@@ -63,7 +80,7 @@ function Aiguillage() {
 }
 
 export default function Racine() {
-  const [policesPretes] = useFonts({
+  const [policesPretes, erreurPolices] = useFonts({
     Archivo_700Bold,
     Archivo_800ExtraBold,
     Manrope_500Medium,
@@ -73,7 +90,8 @@ export default function Racine() {
     IBMPlexMono_600SemiBold,
   });
 
-  if (!policesPretes) return <View style={{ flex: 1, backgroundColor: couleurs.nuit }} />;
+  // Polices illisibles : l'application démarre quand même, avec celles du système
+  if (!policesPretes && !erreurPolices) return <View style={{ flex: 1, backgroundColor: couleurs.fond }} />;
 
   return (
     <SafeAreaProvider>

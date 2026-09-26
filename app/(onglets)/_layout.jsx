@@ -8,6 +8,7 @@ import { couleurs, polices, ombres } from '../../lib/theme';
 import { Texte } from '../../components/ui';
 import config from '../../config';
 import { useLangue } from '../../lib/i18n';
+import { useSession } from '../../lib/session';
 
 const ONGLETS = {
   index: { icone: 'home', cle: 'nav.accueil' },
@@ -26,7 +27,7 @@ const NOMS = {
 
 function BarreOnglets({ state, navigation }) {
   const marges = useSafeAreaInsets();
-  const { langue } = useLangue();
+  const { langue, t } = useLangue();
 
   const visibles = state.routes.filter((route) => {
     if (!ONGLETS[route.name]) return false;
@@ -50,8 +51,10 @@ function BarreOnglets({ state, navigation }) {
         key={route.key}
         onPress={aller}
         accessibilityRole="tab"
+        accessibilityLabel={nom}
         accessibilityState={{ selected: actif }}
         style={styles.onglet}
+        testID={'onglet-' + route.name}
       >
         <Feather name={reglage.icone} size={22} color={actif ? couleurs.accent : couleurs.texteFaible} />
         <Texte
@@ -75,8 +78,9 @@ function BarreOnglets({ state, navigation }) {
         <Pressable
           onPress={() => navigation.navigate(central.name)}
           accessibilityRole="button"
-          accessibilityLabel={NOMS['nav.colis'][langue]}
+          accessibilityLabel={t('pa.titre')}
           style={[styles.central, ombres.bouton]}
+          testID="onglet-prealerte"
         >
           <Feather name="plus" size={25} color="#ffffff" />
         </Pressable>
@@ -87,6 +91,10 @@ function BarreOnglets({ state, navigation }) {
 }
 
 export default function Onglets() {
+  // Sans session, aucun écran privé ne se dessine (ni ne demande quoi que ce soit au
+  // serveur) : l'aiguillage (app/_layout.jsx) mène à la connexion
+  const { connecte } = useSession();
+  if (!connecte) return null;
   return (
     <Tabs tabBar={(props) => <BarreOnglets {...props} />} screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="index" />

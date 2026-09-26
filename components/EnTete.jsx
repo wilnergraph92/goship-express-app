@@ -6,9 +6,11 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { couleurs } from '../lib/theme';
 import { Titre } from './ui';
+import { useLangue } from '../lib/i18n';
 
 export default function EnTete({ titre, retour, action, bas = 22, arrondi = true, children }) {
   const marges = useSafeAreaInsets();
+  const { t } = useLangue();
   return (
     <View
       style={[
@@ -21,10 +23,11 @@ export default function EnTete({ titre, retour, action, bas = 22, arrondi = true
       <View style={styles.ligne}>
         {retour ? (
           <Pressable
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(onglets)'))}
             style={styles.rond}
             accessibilityRole="button"
-            accessibilityLabel="Retour"
+            accessibilityLabel={t('gen.retour')}
+            testID="retour"
           >
             <Feather name="arrow-left" size={20} color="#ffffff" />
           </Pressable>

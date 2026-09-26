@@ -1,11 +1,39 @@
 // Réglages de l'application GoShip Express.
+//
 // La clé « publiable » est prévue pour être lue par les clients : elle ne donne accès
 // qu'à ce que les règles de sécurité de Supabase autorisent (comme sur le site).
+// Aucun autre secret ne doit jamais apparaître ici : ni clé « service_role », ni mot de
+// passe, ni clé d'un service de paiement, d'e-mail ou de WhatsApp. Tout ce fichier part
+// dans l'application publiée, lisible par n'importe qui.
+//
+// Environnements (choisis au moment de construire l'application, jamais par l'utilisateur) :
+//   production  la vraie base — par défaut, et dans tout build des boutiques (eas.json)
+//   essai       une base jetable sur la machine d'essai (essais automatiques seulement) :
+//               son adresse vient de EXPO_PUBLIC_SUPABASE_URL, fixée au moment du build,
+//               si bien qu'aucune adresse locale n'entre dans l'application de production.
+// Il n'existe pas (encore) de base de préproduction : le profil « preview » d'eas.json
+// utilise la production. Voir README.md, « Environnements ».
 
-export default {
-  // Même projet Supabase que le site et le tableau de bord
+const PRODUCTION = {
   supabaseUrl: 'https://gpfdyslysqjmojgzggib.supabase.co',
   supabaseKey: 'sb_publishable_zdlM4FPqlwq-145lrVeYpw_rHqB7Drt',
+};
+
+// Expo remplace process.env.EXPO_PUBLIC_… par sa valeur au moment du build
+const environnement = process.env.EXPO_PUBLIC_GOSHIP_ENV || 'production';
+if (environnement !== 'production' && environnement !== 'essai') {
+  throw new Error('Environnement inconnu : ' + environnement);
+}
+const serveur = environnement === 'essai'
+  ? { supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL, supabaseKey: 'cle-publique-essai' }
+  : PRODUCTION;
+
+export default {
+  environnement,
+  ...serveur,
+
+  // Le site : pages de réinitialisation du mot de passe et de fermeture du compte
+  siteUrl: 'https://wilnergraph92.github.io/Goship-express-site/',
 
   // Coordonnées affichées dans l'application
   telephone: '+18495386262',
@@ -23,15 +51,16 @@ export default {
     pays: 'United States',
   },
 
-  // Ce que voient les clients. Mettez « factures: true » le jour où vous êtes prêt :
-  // l'onglet Factures et l'écran de paiement réapparaissent, rien d'autre à changer.
+  // Ce que voient les clients. Les factures, leurs paiements et le solde viennent de la
+  // base (mes_factures, mon_resume), comme dans l'espace client du site. Mettez
+  // « factures: false » pour cacher l'onglet Factures et l'écran de paiement.
   modules: {
-    factures: false,
+    factures: true,
   },
 
   // Moyens de paiement des factures.
-  // « paypalLien » sert quand une facture n'a pas son propre lien de paiement.
-  // Les valeurs entre crochets restent à compléter.
+  // Les valeurs entre crochets restent à compléter : l'application les montre
+  // « à compléter » et ne les propose pas à la copie.
   paiement: {
     // Paiement par carte (Visa, Mastercard).
     // Le jour où Azul est prêt : collez son lien dans « carteLien » et remplacez
@@ -48,7 +77,8 @@ export default {
     ],
   },
 
-  // Agences (les adresses manquantes restent à compléter)
+  // Agences. Une adresse entre crochets n'est pas encore connue : l'application écrit
+  // « adresse communiquée sur demande » et ne propose pas d'itinéraire.
   agences: [
     {
       id: 'miami',
@@ -76,3 +106,8 @@ export default {
     },
   ],
 };
+
+// Une valeur « [À COMPLÉTER] » laissée dans ce fichier
+export function aCompleter(valeur) {
+  return !valeur || /^\[.*\]$/.test(String(valeur).trim());
+}

@@ -1,13 +1,15 @@
 // Création d'un compte client (le code GSE est attribué automatiquement par la base).
 
 import { useState } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable, Alert } from 'react-native';
+import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import EnTete from '../components/EnTete';
 import { Texte, Bouton, Champ, Etiquette } from '../components/ui';
 import { couleurs, rayons } from '../lib/theme';
 import { useLangue } from '../lib/i18n';
-import { useSession } from '../lib/session';
+import { useSession, MDP_MINIMUM, emailValide } from '../lib/session';
+import { classer } from '../lib/erreurs';
 
 const PAYS = [
   { code: 'HT', cle: 'pays.HT' },
@@ -22,30 +24,41 @@ export default function Inscription() {
   const [champs, setChamps] = useState({
     nom_complet: '', email: '', motDePasse: '', telephone: '', pays: 'HT', ville: '',
   });
+  const [erreurs, setErreurs] = useState({});
+  const [message, setMessage] = useState(null);
   const [occupe, setOccupe] = useState(false);
 
-  const poser = (cle) => (valeur) => setChamps((c) => ({ ...c, [cle]: valeur }));
+  const poser = (cle) => (valeur) => {
+    setChamps((c) => ({ ...c, [cle]: valeur }));
+    setErreurs((e) => ({ ...e, [cle]: undefined }));
+    setMessage(null);
+  };
 
   async function creer() {
-    if (!champs.nom_complet.trim() || !champs.email.trim() || !champs.motDePasse) {
-      Alert.alert('GoShip Express', t('in.champs'));
-      return;
-    }
+    if (occupe) return;
+    const e = {};
+    if (!champs.nom_complet.trim()) e.nom_complet = t('in.champs');
+    if (!emailValide(champs.email)) e.email = t('in.email_invalide');
+    if (String(champs.motDePasse).length < MDP_MINIMUM) e.motDePasse = t('in.mdp_court');
+    if (Object.keys(e).length) { setErreurs(e); return; }
     setOccupe(true);
     try {
       const res = await inscription({ ...champs, langue });
       if (res && res.confirmation) {
         // Compte créé, mais l'adresse e-mail doit d'abord être confirmée
-        Alert.alert('GoShip Express', t('in.confirmez'), [
-          { text: 'OK', onPress: () => router.replace('/connexion') },
-        ]);
+        setMessage({ type: 'ok', texte: t('in.confirmez') });
         return;
       }
       router.replace('/(onglets)');
-    } catch (e) {
-      const messages = { 'email-existe': t('cx.echec'), 'mot-de-passe-court': t('in.mdp_court') };
-      const message = (e && messages[e.code]) || (e && e.message) || t('gen.erreur');
-      Alert.alert('GoShip Express', message);
+    } catch (err) {
+      const code = err && err.code;
+      if (code === 'email-existe') setErreurs({ email: t('in.email_existe') });
+      else if (code === 'email-invalide') setErreurs({ email: t('in.email_invalide') });
+      else if (code === 'mot-de-passe-court' || code === 'weak_password') setErreurs({ motDePasse: t('in.mdp_court') });
+      else {
+        const c = classer(err);
+        setMessage({ type: 'erreur', texte: t('err.' + (['reseau', 'delai', 'serveur'].indexOf(c.type) >= 0 ? c.type : 'inconnue')) });
+      }
     } finally {
       setOccupe(false);
     }
@@ -58,22 +71,27 @@ export default function Inscription() {
       </EnTete>
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 40, gap: 14 }} keyboardShouldPersistTaps="handled">
-        <Champ etiquette={t('in.nom')} value={champs.nom_complet} onChangeText={poser('nom_complet')} autoComplete="name" />
-        <Champ etiquette={t('cx.email')} value={champs.email} onChangeText={poser('email')} autoCapitalize="none" keyboardType="email-address" inputMode="email" autoComplete="email" />
-        <Champ etiquette={t('cx.motdepasse')} value={champs.motDePasse} onChangeText={poser('motDePasse')} secureTextEntry autoCapitalize="none" autoComplete="new-password" />
-        <Champ etiquette={t('in.telephone')} value={champs.telephone} onChangeText={poser('telephone')} keyboardType="phone-pad" autoComplete="tel" />
+        <Champ etiquette={t('in.nom')} value={champs.nom_complet} onChangeText={poser('nom_complet')} autoComplete="name"
+          erreur={erreurs.nom_complet} maxLength={120} testID="in-nom" />
+        <Champ etiquette={t('cx.email')} value={champs.email} onChangeText={poser('email')} autoCapitalize="none"
+          keyboardType="email-address" inputMode="email" autoComplete="email" erreur={erreurs.email} maxLength={160} testID="in-email" />
+        <Champ etiquette={t('cx.motdepasse')} value={champs.motDePasse} onChangeText={poser('motDePasse')} secureTextEntry
+          autoCapitalize="none" autoComplete="new-password" textContentType="newPassword" erreur={erreurs.motDePasse} testID="in-mdp" />
+        <Champ etiquette={t('in.telephone')} value={champs.telephone} onChangeText={poser('telephone')} keyboardType="phone-pad"
+          autoComplete="tel" maxLength={40} testID="in-telephone" />
 
         <View style={{ gap: 7 }}>
           <Etiquette>{t('in.pays')}</Etiquette>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8 }} accessibilityRole="radiogroup">
             {PAYS.map((p) => (
               <Pressable
                 key={p.code}
                 onPress={() => poser('pays')(p.code)}
-                accessibilityRole="button"
+                accessibilityRole="radio"
+                accessibilityState={{ selected: champs.pays === p.code }}
                 style={{
                   flex: 1,
-                  height: 50,
+                  minHeight: 50,
                   borderRadius: rayons.champ,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -90,11 +108,24 @@ export default function Inscription() {
           </View>
         </View>
 
-        <Champ etiquette={t('in.ville')} value={champs.ville} onChangeText={poser('ville')} />
+        <Champ etiquette={t('in.ville')} value={champs.ville} onChangeText={poser('ville')} maxLength={80} testID="in-ville" />
 
-        <Bouton titre={t('in.creer')} onPress={creer} occupe={occupe} style={{ marginTop: 6 }} />
+        {message ? (
+          <View accessibilityLiveRegion="polite" testID={'in-' + message.type}
+            style={{ flexDirection: 'row', gap: 10, alignItems: 'center', padding: 13, borderRadius: 14,
+              backgroundColor: message.type === 'ok' ? 'rgba(14,159,110,0.08)' : 'rgba(192,57,43,0.07)' }}>
+            <Feather name={message.type === 'ok' ? 'mail' : 'alert-circle'} size={18} color={message.type === 'ok' ? couleurs.vert : couleurs.rouge} />
+            <Texte taille={13.5} style={{ flex: 1, lineHeight: 19 }}>{message.texte}</Texte>
+          </View>
+        ) : null}
 
-        <Pressable onPress={() => router.replace('/connexion')} style={{ alignItems: 'center', paddingVertical: 10 }} accessibilityRole="button">
+        {message && message.type === 'ok' ? (
+          <Bouton titre={t('cx.connexion')} onPress={() => router.replace('/connexion')} style={{ marginTop: 6 }} />
+        ) : (
+          <Bouton titre={t('in.creer')} onPress={creer} occupe={occupe} style={{ marginTop: 6 }} testID="in-creer" />
+        )}
+
+        <Pressable onPress={() => router.replace('/connexion')} style={{ alignItems: 'center', paddingVertical: 12 }} accessibilityRole="button">
           <Texte gras doux taille={14}>{t('in.deja')}</Texte>
         </Pressable>
       </ScrollView>

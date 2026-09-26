@@ -1,45 +1,60 @@
 // Détail d'un colis : statut, informations et étapes.
+//
+// Les étapes sont les événements réellement enregistrés par la base (colis_historique),
+// dans l'ordre où ils se sont produits : ceux que la règle de lecture montre au client
+// (publics, jamais une étape annulée par une correction). Le statut affiché est celui
+// du colis, tel que le moteur d'événements l'a fixé — l'application n'en déduit rien.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { View, ScrollView, Pressable, Linking, Share, StyleSheet } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import config from '../../config';
 import { couleurs, rayons, ombres, STATUTS } from '../../lib/theme';
-import { Titre, Texte, Mono, Etiquette, Bouton, Chargement } from '../../components/ui';
+import { Titre, Texte, Mono, Etiquette, Bouton, Chargement, EtatErreur, Bandeau } from '../../components/ui';
 import { FriseLegendee } from '../../components/colis';
 import { useLangue } from '../../lib/i18n';
 import { useSession } from '../../lib/session';
-import { unColis, surveillerColis } from '../../lib/api';
+import { useDonnees } from '../../lib/useDonnees';
+import { unColis, surveiller } from '../../lib/api';
 import { dateRelative, libelleStatut, libelleService, libellePays, poids } from '../../lib/format';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function DetailColis() {
   const { id } = useLocalSearchParams();
   const { t, langue } = useLangue();
   const { profil } = useSession();
   const marges = useSafeAreaInsets();
-  const [colis, setColis] = useState(null);
 
-  const charger = useCallback(async () => {
-    try {
-      setColis(await unColis(String(id)));
-    } catch (e) {
-      setColis(false);
+  const { donnees: colis, erreur, recharger, chargement } = useDonnees(async () => {
+    // Un lien mal formé ne part même pas au serveur
+    if (!UUID.test(String(id || ''))) {
+      const e = new Error('introuvable');
+      e.goship = { type: 'introuvable', code: 'INTROUVABLE', detail: '' };
+      throw e;
     }
+    const c = await unColis(String(id));
+    // Aucune ligne : ce colis n'existe pas, ou il n'est pas à ce compte (la base ne le
+    // montre pas) — les deux cas disent la même chose, sans rien révéler
+    if (!c) {
+      const e = new Error('introuvable');
+      e.goship = { type: 'introuvable', code: 'INTROUVABLE', detail: '' };
+      throw e;
+    }
+    return c;
   }, [id]);
 
-  useEffect(() => { charger(); }, [charger]);
-  useEffect(() => {
-    if (!profil?.id) return undefined;
-    return surveillerColis(profil.id, charger);
-  }, [profil?.id, charger]);
+  useEffect(() => surveiller(profil?.id, recharger), [profil?.id, recharger]);
 
   const s = colis ? (STATUTS[colis.statut] || STATUTS.recu) : STATUTS.recu;
+  // Les étapes, de la plus récente à la plus ancienne
+  const etapes = colis ? colis.historique.slice().reverse() : [];
 
   function ecrire() {
     const texte = `GoShip Express — ${colis?.numero || ''}`;
-    Linking.openURL(`https://wa.me/${config.whatsapp}?text=${encodeURIComponent(texte)}`);
+    Linking.openURL(`https://wa.me/${config.whatsapp}?text=${encodeURIComponent(texte)}`).catch(() => {});
   }
 
   return (
@@ -51,71 +66,76 @@ export default function DetailColis() {
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/(onglets)/colis'))}
             style={styles.rond}
             accessibilityRole="button"
-            accessibilityLabel={t('co.titre')}
+            accessibilityLabel={t('gen.retour')}
+            testID="retour"
           >
             <Feather name="arrow-left" size={20} color="#ffffff" />
           </Pressable>
-          <Mono taille={14} couleur="#ffffff">{colis?.numero || ''}</Mono>
-          <Pressable
-            onPress={() => Share.share({ message: `${colis?.numero || ''} — ${libelleStatut(colis?.statut || 'recu', langue)}` })}
-            style={styles.rond}
-            accessibilityRole="button"
-            accessibilityLabel={t('gen.partager')}
-          >
-            <Feather name="share-2" size={18} color="#ffffff" />
-          </Pressable>
+          <Mono taille={14} couleur="#ffffff" testID="detail-numero">{colis?.numero || ''}</Mono>
+          {colis ? (
+            <Pressable
+              onPress={() => Share.share({ message: `${colis.numero} — ${libelleStatut(colis.statut, langue)}` })}
+              style={styles.rond}
+              accessibilityRole="button"
+              accessibilityLabel={t('gen.partager')}
+            >
+              <Feather name="share-2" size={18} color="#ffffff" />
+            </Pressable>
+          ) : <View style={{ width: 44 }} />}
         </View>
       </View>
 
-      {colis === null ? (
+      {colis ? <Bandeau erreur={erreur} onReessayer={recharger} /> : null}
+
+      {chargement ? (
         <Chargement />
       ) : !colis ? (
-        <View style={{ padding: 24 }}>
-          <Texte doux>{t('gen.erreur')}</Texte>
-          <Bouton titre={t('gen.reessayer')} onPress={charger} style={{ marginTop: 16 }} />
-        </View>
+        <View style={{ paddingTop: 20 }}><EtatErreur erreur={erreur} onReessayer={recharger} /></View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
           <View style={[styles.carteStatut, ombres.carte]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
               <View style={[styles.rondStatut, { backgroundColor: s.fond }]}>
-                <Feather name="package" size={22} color={s.couleur} />
+                <Feather name={colis.statut === 'incident' ? 'alert-triangle' : 'package'} size={22} color={s.couleur} />
               </View>
               <View style={{ flex: 1, gap: 3 }}>
-                <Titre taille={18}>{libelleStatut(colis.statut, langue)}</Titre>
+                <Titre taille={18} testID="detail-statut">{libelleStatut(colis.statut, langue)}</Titre>
                 <Texte doux taille={12.5}>
                   {dateRelative(colis.maj_le, langue)}{colis.lieu ? ` · ${colis.lieu}` : ''}
                 </Texte>
               </View>
             </View>
             <View style={{ marginTop: 16 }}>
-              <FriseLegendee statut={colis.statut} />
+              <FriseLegendee statut={colis.statut} historique={colis.historique} />
             </View>
             {colis.note ? (
-              <View style={styles.note}>
+              <View style={[styles.note, colis.statut === 'incident' && styles.noteAlerte]}>
                 <Texte taille={12.5} doux style={{ lineHeight: 19 }}>{colis.note}</Texte>
               </View>
             ) : null}
           </View>
 
           <View style={styles.grille}>
+            {colis.description ? <Info etiquette={t('pa.contenu')} valeur={colis.description} large /> : null}
             <Info etiquette={t('de.poids')} valeur={poids(colis.poids_lb, langue)} />
             <Info etiquette={t('de.service')} valeur={libelleService(colis.service, langue)} />
-            <Info etiquette={t('de.magasin')} valeur={colis.expediteur || '—'} />
+            {colis.expediteur ? <Info etiquette={t('de.magasin')} valeur={colis.expediteur} /> : null}
             <Info etiquette={t('de.destination')} valeur={colis.destination || libellePays(colis.pays_destination, langue)} />
+            {colis.suivi_transporteur ? <Info etiquette={t('de.suivi_magasin')} valeur={colis.suivi_transporteur} large mono /> : null}
           </View>
 
-          <View style={[styles.carteEtapes, ombres.carte]}>
+          <View style={[styles.carteEtapes, ombres.carte]} testID="detail-etapes">
             <Titre taille={15.5} style={{ marginBottom: 14 }}>{t('de.etapes')}</Titre>
-            {(colis.historique || []).length === 0 ? (
+            {etapes.length === 0 ? (
               <Texte doux taille={13}>{t('de.aucune_etape')}</Texte>
             ) : (
-              colis.historique.map((etape, index) => {
+              etapes.map((etape, index) => {
                 const premier = index === 0;
-                const dernier = index === colis.historique.length - 1;
+                const dernier = index === etapes.length - 1;
                 const c = STATUTS[etape.statut] || STATUTS.recu;
                 return (
-                  <View key={index} style={{ flexDirection: 'row', gap: 14 }}>
+                  <View key={etape.id ?? index} style={{ flexDirection: 'row', gap: 14 }} accessible
+                    accessibilityLabel={[libelleStatut(etape.statut, langue), dateRelative(etape.cree_le, langue), etape.lieu, etape.note].filter(Boolean).join(', ')}>
                     <View style={{ alignItems: 'center' }}>
                       <View
                         style={[
@@ -128,7 +148,7 @@ export default function DetailColis() {
                       {!dernier ? <View style={styles.fil} /> : null}
                     </View>
                     <View style={{ flex: 1, paddingBottom: dernier ? 4 : 16 }}>
-                      <Texte gras taille={14}>{libelleStatut(etape.statut, langue)}</Texte>
+                      <Texte gras taille={14} testID="etape">{libelleStatut(etape.statut, langue)}</Texte>
                       <Texte doux taille={12.5} style={{ marginTop: 2 }}>
                         {dateRelative(etape.cree_le, langue)}{etape.lieu ? ` · ${etape.lieu}` : ''}
                       </Texte>
@@ -161,11 +181,13 @@ export default function DetailColis() {
   );
 }
 
-function Info({ etiquette, valeur }) {
+function Info({ etiquette, valeur, large, mono }) {
   return (
-    <View style={styles.info}>
+    <View style={[styles.info, large && { width: '100%' }]}>
       <Etiquette>{etiquette}</Etiquette>
-      <Texte gras taille={14.5} style={{ marginTop: 5 }} numberOfLines={1}>{valeur}</Texte>
+      {mono
+        ? <Mono taille={13.5} style={{ marginTop: 5 }} selectable>{valeur}</Mono>
+        : <Texte gras taille={14.5} style={{ marginTop: 5 }} numberOfLines={large ? 3 : 1}>{valeur}</Texte>}
     </View>
   );
 }
@@ -207,6 +229,7 @@ const styles = StyleSheet.create({
   point: { width: 13, height: 13, borderRadius: 7 },
   fil: { flex: 1, width: 2, backgroundColor: '#edf1f8', marginVertical: 2 },
   note: { marginTop: 8, backgroundColor: '#f7f9fd', borderRadius: 12, padding: 10 },
+  noteAlerte: { backgroundColor: 'rgba(220,38,38,0.07)' },
   barreBas: {
     position: 'absolute',
     left: 0,
