@@ -28,9 +28,11 @@ on:
 permissions:
   contents: read
 
+# Un nouveau run attend la fin du précédent plutôt que de l'annuler : un build natif
+# interrompu ne dit rien, un build fini dit ce qui marche
 concurrency:
   group: mobile-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   EXPO_NO_TELEMETRY: 1
@@ -222,6 +224,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
+      - name: Xcode le plus récent de la machine (Expo 57 demande Swift 6.2, Xcode 26)
+        run: |
+          xcode=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Xcode choisi : $xcode"
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
+          swift --version
       - run: npm ci
       - name: Projet iOS (expo prebuild, CocoaPods)
         run: npx expo prebuild --platform ios --clean
