@@ -26,6 +26,12 @@ maestro test \
 if [ "$statut" -ne 0 ]; then
   # Les captures restent dans les artefacts ; le journal de la CI dit déjà l'essentiel :
   # ce que Maestro voit à l'écran au moment de l'échec, et ce qu'a dit l'application.
+  # Capture de l'écran tel quel (artefact « …-echec.png »)
+  if [ "$plateforme" = android ]; then
+    adb exec-out screencap -p > "$sortie/ecran-echec.png" || true
+  else
+    xcrun simctl io booted screenshot "$sortie/ecran-echec.png" || true
+  fi
   echo "== Écran au moment de l'échec (textes et identifiants vus par Maestro)"
   maestro hierarchy > "$sortie/ecran-echec.json" 2>/dev/null || true
   python3 - "$sortie/ecran-echec.json" <<'PY' || true
