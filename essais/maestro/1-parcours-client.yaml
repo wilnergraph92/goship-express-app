@@ -167,6 +167,10 @@ name: Parcours client
     direction: DOWN
 - tapOn:
     id: compte-deconnexion
+- scrollUntilVisible:
+    element:
+      id: compte-deconnexion-oui
+    direction: DOWN
 - tapOn:
     id: compte-deconnexion-oui
 - extendedWaitUntil:

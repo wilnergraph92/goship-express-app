@@ -1,6 +1,6 @@
 // Mon compte : code client, réglages, langue, notifications, aide et déconnexion.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Pressable, Linking, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,8 +30,14 @@ export default function Compte() {
   const [confirmer, setConfirmer] = useState(false);
   const [notif, setNotif] = useState(etatNotifications());
   const [details, setDetails] = useState(false);
+  const defilement = useRef(null);
 
   useEffect(() => surEtatNotifications(setNotif), []);
+  // La question « Se déconnecter ? » s'ouvre à la place du bouton, en bas de la page : sur
+  // un petit écran elle tomberait sous la barre d'onglets, on la fait venir sous les yeux
+  useEffect(() => {
+    if (confirmer) setTimeout(() => defilement.current?.scrollToEnd({ animated: true }), 0);
+  }, [confirmer]);
 
   const initiales = (profil?.nom_complet || '')
     .split(' ')
@@ -91,7 +97,7 @@ export default function Compte() {
         ) : null}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 30 }}>
+      <ScrollView ref={defilement} contentContainerStyle={{ padding: 18, paddingBottom: 30 }}>
         <View style={[styles.liste, ombres.carte]}>
           <Ligne icone="user" titre={t('cp.infos')} onPress={() => setDetails((v) => !v)} ouvert={details} />
           {details ? (
