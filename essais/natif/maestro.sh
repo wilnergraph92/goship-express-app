@@ -32,6 +32,19 @@ if [ "$statut" -ne 0 ]; then
   else
     xcrun simctl io booted screenshot "$sortie/ecran-echec.png" || true
   fi
+  # L'étape qui a échoué, telle que Maestro la rapporte (le résumé de la console ne donne
+  # que le nom du parcours)
+  echo "== Étape en échec"
+  python3 - "$sortie/maestro-$plateforme.xml" <<'PY' || true
+import sys, xml.etree.ElementTree as ET
+try:
+    racine = ET.parse(sys.argv[1]).getroot()
+except Exception as e:
+    sys.exit('rapport illisible : %s' % e)
+for cas in racine.iter('testcase'):
+    for echec in list(cas.iter('failure')) + list(cas.iter('error')):
+        print('%s : %s' % (cas.get('name'), (echec.get('message') or echec.text or '').strip()[:600]))
+PY
   echo "== Écran au moment de l'échec (textes et identifiants vus par Maestro)"
   maestro hierarchy > "$sortie/ecran-echec.json" 2>/dev/null || true
   python3 - "$sortie/ecran-echec.json" <<'PY' || true

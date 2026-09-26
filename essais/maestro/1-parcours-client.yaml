@@ -91,6 +91,8 @@ name: Parcours client
 
 # Liens profonds : son colis s'ouvre ; celui d'un autre client, jamais
 - openLink: goshipexpress://colis/${COLIS_MARIE}
+- runFlow:
+    file: commun/ouvrir-lien-ios.yaml
 - extendedWaitUntil:
     visible:
       id: detail-numero
@@ -99,12 +101,16 @@ name: Parcours client
     id: detail-numero
     text: GSE-1002-HT
 - openLink: goshipexpress://colis/${COLIS_JEAN}
+- runFlow:
+    file: commun/ouvrir-lien-ios.yaml
 - extendedWaitUntil:
     visible:
       id: etat-introuvable
     timeout: 20000
 - assertNotVisible: Colis de Jean 1
 - openLink: goshipexpress://suivi?numero=GSE-1026-HT
+- runFlow:
+    file: commun/ouvrir-lien-ios.yaml
 - extendedWaitUntil:
     visible:
       id: suivi-public
@@ -113,6 +119,8 @@ name: Parcours client
 
 # Pré-alerte : confirmée seulement par la base
 - openLink: goshipexpress://prealerte
+- runFlow:
+    file: commun/ouvrir-lien-ios.yaml
 - extendedWaitUntil:
     visible:
       id: pa-magasin
