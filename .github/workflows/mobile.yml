@@ -189,7 +189,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: bash essais/natif/android-emulateur.sh "$(ls apk/*-essai.apk)" "$(ls apk/*-production.apk)" "$PWD/sortie-android"
+          script: BASE_LOG="${{ runner.temp }}/base.log" bash essais/natif/android-emulateur.sh "$(ls apk/*-essai.apk)" "$(ls apk/*-production.apk)" "$PWD/sortie-android"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -278,7 +278,7 @@ jobs:
           xcrun simctl boot "$appareil"
           xcrun simctl bootstatus "$appareil" -b
           xcrun simctl install "$appareil" "build/Build/Products/Release-iphonesimulator/GoShipExpress.app"
-          bash essais/natif/maestro.sh ios "$PWD/sortie-ios"
+          BASE_LOG="$RUNNER_TEMP/base.log" bash essais/natif/maestro.sh ios "$PWD/sortie-ios"
           xcrun simctl io "$appareil" screenshot "$PWD/sortie-ios/fin.png" || true
       - uses: actions/upload-artifact@v4
         if: always()

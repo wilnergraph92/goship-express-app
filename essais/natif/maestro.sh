@@ -49,6 +49,10 @@ def parcourir(n, prof=0):
         parcourir(e, prof + 1)
 parcourir(racine)
 PY
+  if [ -n "${BASE_LOG:-}" ] && [ -f "$BASE_LOG" ]; then
+    echo "== Requêtes refusées par la base d'essai"
+    grep '^REST' "$BASE_LOG" | tail -40 || echo "(aucune)"
+  fi
   echo "== Messages de l'application"
   if [ "$plateforme" = android ]; then
     adb logcat -d -s ReactNativeJS:V ReactNative:W AndroidRuntime:E | tail -80 || true
