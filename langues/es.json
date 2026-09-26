@@ -1,4 +1,6 @@
 {
-  "CFBundleDisplayName": "GoShip Express",
-  "NSCameraUsageDescription": "La cámara sirve para escanear el código de barras de sus paquetes."
+  "ios": {
+    "CFBundleDisplayName": "GoShip Express",
+    "NSCameraUsageDescription": "La cámara sirve para escanear el código de barras de sus paquetes."
+  }
 }

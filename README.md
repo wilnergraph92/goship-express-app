@@ -231,7 +231,7 @@ Refusées et retirées de l'application : micro (enregistrement vidéo d'expo-ca
 superposition d'écran, lecture/écriture du stockage, photos (l'ancienne « photo de
 facture » n'était jamais envoyée : retirée), Face ID (aucune biométrie). Ni localisation,
 ni contacts. Aucune tâche en arrière-plan. Sauvegarde Android désactivée.
-Textes des autorisations iOS en français, anglais et espagnol (`langues/`).
+Textes des autorisations iOS en français, anglais et espagnol (`langues/`), rangés sous la clé `ios` : Android ne les reçoit pas (sans valeur par défaut, son lint de publication les refuse).
 
 ## Essais
 
