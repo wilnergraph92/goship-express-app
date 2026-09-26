@@ -165,6 +165,9 @@ name: Parcours client
     element:
       id: compte-deconnexion
     direction: DOWN
+# Jusqu'au fond : à peine visible, le bouton passerait sous le « + » central de la
+# barre d'onglets, qui déborde vers le haut, et c'est lui qui recevrait le toucher
+- scroll
 - tapOn:
     id: compte-deconnexion
 - scrollUntilVisible:

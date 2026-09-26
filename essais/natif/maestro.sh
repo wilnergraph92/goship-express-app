@@ -31,31 +31,22 @@ lancer() {
 pilote_perdu() {
   grep -qE "DeviceUnreachableException|driver not ready|Device became unreachable" "$sortie/maestro-$plateforme-$1.xml" 2>/dev/null
 }
-statut=0
-for parcours in "$racine"/essais/maestro/*.yaml; do
-  nom="$(basename "$parcours" .yaml)"
-  s=0; lancer "$parcours" "$nom" || s=$?
-  if [ "$s" -ne 0 ] && pilote_perdu "$nom"; then
-    echo "== $nom : le pilote de Maestro a lâché (pas une assertion) — nouvel essai, le seul"
-    mv "$sortie/maestro-$plateforme-$nom.xml" "$sortie/maestro-$plateforme-$nom-pilote-perdu.xml"
-    s=0; lancer "$parcours" "$nom" || s=$?
-  fi
-  if [ "$s" -ne 0 ]; then statut=$s; fi
-done
-
-if [ "$statut" -ne 0 ]; then
+# Ce que Maestro voyait et ce qu'a dit l'application, relevé juste après le parcours
+# qui a échoué (le parcours suivant changerait l'écran)
+diagnostiquer() {
+  nom="$1"
   # Les captures restent dans les artefacts ; le journal de la CI dit déjà l'essentiel :
   # ce que Maestro voit à l'écran au moment de l'échec, et ce qu'a dit l'application.
   # Capture de l'écran tel quel (artefact « …-echec.png »)
   if [ "$plateforme" = android ]; then
-    adb exec-out screencap -p > "$sortie/ecran-echec.png" || true
+    adb exec-out screencap -p > "$sortie/ecran-echec-$nom.png" || true
   else
-    xcrun simctl io booted screenshot "$sortie/ecran-echec.png" || true
+    xcrun simctl io booted screenshot "$sortie/ecran-echec-$nom.png" || true
   fi
   # L'étape qui a échoué, telle que Maestro la rapporte (le résumé de la console ne donne
   # que le nom du parcours)
   echo "== Étape en échec"
-  python3 - "$sortie"/maestro-"$plateforme"-*.xml <<'PY' || true
+  python3 - "$sortie/maestro-$plateforme-$nom.xml" <<'PY' || true
 import sys, xml.etree.ElementTree as ET
 for chemin in sys.argv[1:]:
     if chemin.endswith('-pilote-perdu.xml'):
@@ -70,8 +61,8 @@ for chemin in sys.argv[1:]:
             print('%s : %s' % (cas.get('name'), (echec.get('message') or echec.text or '').strip()[:600]))
 PY
   echo "== Écran au moment de l'échec (textes et identifiants vus par Maestro)"
-  maestro hierarchy > "$sortie/ecran-echec.json" 2>/dev/null || true
-  python3 - "$sortie/ecran-echec.json" <<'PY' || true
+  maestro hierarchy > "$sortie/ecran-echec-$nom.json" 2>/dev/null || true
+  python3 - "$sortie/ecran-echec-$nom.json" <<'PY' || true
 import json, sys
 try:
     racine = json.load(open(sys.argv[1]))
@@ -97,5 +88,18 @@ PY
     xcrun simctl spawn booted log show --last 5m --style compact \
       --predicate 'process == "GoShipExpress"' 2>/dev/null | grep -iE "error|warn|exception|javascript|\[JS\]" | tail -80 || true
   fi
-  exit "$statut"
-fi
+}
+
+statut=0
+for parcours in "$racine"/essais/maestro/*.yaml; do
+  nom="$(basename "$parcours" .yaml)"
+  s=0; lancer "$parcours" "$nom" || s=$?
+  if [ "$s" -ne 0 ] && pilote_perdu "$nom"; then
+    echo "== $nom : le pilote de Maestro a lâché (pas une assertion) — nouvel essai, le seul"
+    mv "$sortie/maestro-$plateforme-$nom.xml" "$sortie/maestro-$plateforme-$nom-pilote-perdu.xml"
+    s=0; lancer "$parcours" "$nom" || s=$?
+  fi
+  if [ "$s" -ne 0 ]; then statut=$s; diagnostiquer "$nom"; fi
+done
+
+exit "$statut"
