@@ -23,9 +23,9 @@ name: Parcours client
 - tapOn:
     id: connexion-mdp
 - inputText: mauvais
-- hideKeyboard
-- tapOn:
-    id: connexion-entrer
+# Entrée sur le mot de passe envoie le formulaire (et ferme le clavier) ; hideKeyboard
+# n'est pas fiable sur Android avec un champ React Native
+- pressKey: Enter
 - extendedWaitUntil:
     visible:
       id: connexion-erreur
@@ -36,20 +36,19 @@ name: Parcours client
     id: connexion-mdp
 - eraseText: 20
 - inputText: marie-essai-1
-- hideKeyboard
-- tapOn:
-    id: connexion-entrer
+- pressKey: Enter
 - extendedWaitUntil:
     visible:
-      id: stat-en-cours-nombre
+      id: stat-en-cours
     timeout: 30000
-# Les chiffres de la base (mon_resume) : 24 en cours, 1 à retirer
+# Les chiffres de la base (mon_resume) : 24 en cours, 1 à retirer. Une carte est un
+# seul élément accessible (« 24 en cours ») : ses enfants n'existent pas pour Maestro
 - assertVisible:
-    id: stat-en-cours-nombre
-    text: "24"
+    id: stat-en-cours
+    text: "24 .*"
 - assertVisible:
-    id: stat-disponibles-nombre
-    text: "1"
+    id: stat-disponibles
+    text: "1 .*"
 - assertVisible: Marie-Ange Dorvil
 - takeScreenshot: captures/2-accueil
 
@@ -87,7 +86,7 @@ name: Parcours client
 - launchApp
 - extendedWaitUntil:
     visible:
-      id: stat-en-cours-nombre
+      id: stat-en-cours
     timeout: 60000
 
 # Liens profonds : son colis s'ouvre ; celui d'un autre client, jamais
@@ -124,7 +123,8 @@ name: Parcours client
 - tapOn:
     id: pa-contenu
 - inputText: Casque natif
-- hideKeyboard
+# Champ d'une ligne : Entrée le quitte et ferme le clavier
+- pressKey: Enter
 - scrollUntilVisible:
     element:
       id: pa-envoyer

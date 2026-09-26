@@ -19,12 +19,10 @@ name: Permissions
 - tapOn:
     id: connexion-mdp
 - inputText: marie-essai-1
-- hideKeyboard
-- tapOn:
-    id: connexion-entrer
+- pressKey: Enter
 - extendedWaitUntil:
     visible:
-      id: stat-en-cours-nombre
+      id: stat-en-cours
     timeout: 30000
 - tapOn:
     id: onglet-colis
