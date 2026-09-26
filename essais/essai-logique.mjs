@@ -114,14 +114,17 @@ verifier('ni localisation, ni contacts, ni photos demandés', JSON.stringify(app
 verifier('sauvegarde Android désactivée (la session ne part pas dans une sauvegarde)', app.android.allowBackup, false);
 verifier('textes d\'autorisation traduits (fr, en, es)', Object.keys(app.locales).sort(), ['en', 'es', 'fr']);
 const eas = JSON.parse(lire('eas.json'));
-verifier('profils EAS : development, preview, production — tous sur la production', Object.keys(eas.build).map((p) => eas.build[p].env.EXPO_PUBLIC_GOSHIP_ENV),
-  ['production', 'production', 'production']);
+verifier('profils EAS : development, preview, production sur la production ; staging sur la préproduction',
+  Object.keys(eas.build).map((p) => p + ':' + eas.build[p].env.EXPO_PUBLIC_GOSHIP_ENV),
+  ['development:production', 'preview:production', 'staging:staging', 'production:production']);
+verifier('le profil staging ne porte ni l\'adresse ni la clé de la production',
+  JSON.stringify(eas.build.staging.env).includes('gpfdyslysqjmojgzggib') || JSON.stringify(eas.build.staging.env).includes('zdlM4FPq'), false);
 verifier('numéros de build gérés par EAS, toujours croissants', [eas.cli.appVersionSource, eas.build.production.autoIncrement], ['remote', true]);
 // (ce fichier-ci est exclu : il contient exprès de faux exemples, pour éprouver le journal)
 const tout = fichiers(['.'], /node_modules|\.git\/|dist|essais\/captures|essai-logique\.mjs/).filter((f) => /\.(js|jsx|mjs|json|md|sh|command|yml)$/.test(f));
 const secrets = tout.filter((f) => /service_role"?\s*[:=]|sb_secret_[A-Za-z0-9]|eyJhbGciOi[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}|-----BEGIN (RSA |EC )?PRIVATE KEY/.test(lire(f)));
 verifier('aucun secret dans le dépôt (service_role, clé secrète, jeton, clé privée)', secrets, []);
-verifier('la seule clé Supabase est la clé publiable', (lire('config.js').match(/sb_[a-z]+_/g) || []), ['sb_publishable_']);
+verifier('la seule sorte de clé Supabase est la clé publiable', [...new Set(lire('config.js').match(/sb_[a-z]+_/g) || [])], ['sb_publishable_']);
 
 function fichiers(dossiers, exclure) {
   const out = [];

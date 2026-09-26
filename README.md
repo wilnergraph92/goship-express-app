@@ -83,17 +83,24 @@ application construite (build de développement ou de préversion).
 
 | Variable (au moment du build) | Valeurs | Effet |
 |---|---|---|
-| `EXPO_PUBLIC_GOSHIP_ENV` | `production` (défaut), `essai` | Quelle base |
-| `EXPO_PUBLIC_SUPABASE_URL` | ex. `http://localhost:54321` | Adresse de la base d'**essai** seulement |
+| `EXPO_PUBLIC_GOSHIP_ENV` | `production` (défaut), `staging`, `essai` | Quelle base |
+| `EXPO_PUBLIC_SUPABASE_URL` | ex. `http://localhost:54321` | Adresse de la base d'**essai** ou de **préproduction** |
+| `EXPO_PUBLIC_SUPABASE_CLE` | `sb_publishable_…` | Clé publiable de la **préproduction** seulement |
 
 - `production` : `https://gpfdyslysqjmojgzggib.supabase.co` et la clé **publiable**
   (`sb_publishable_…`). Elle est faite pour être publique : elle ne donne que ce que les
   règles de sécurité (RLS) autorisent, exactement comme sur le site.
 - `essai` : la base jetable des essais automatiques. Son adresse n'entre **jamais** dans
   l'application de production (`essais/controle-paquet.mjs` le vérifie à chaque build).
-- **Il n'existe pas de base de préproduction.** Le profil `preview` d'`eas.json` utilise
-  la production. Pour en créer une : un second projet Supabase, les migrations du site
-  dans l'ordre, un environnement `preproduction` dans `config.js` et `eas.json`.
+- `staging` : la préproduction (projet Supabase `goship-staging`, créé selon
+  `docs/production/environment.md` du site). Profil EAS `staging` : remplacer, dans
+  `eas.json`, les deux valeurs `REMPLACER…` par l'adresse et la clé publiable de
+  goship-staging (l'application refuse de démarrer tant qu'elles y sont). Construire :
+  `eas build --profile staging --platform all`, installer sur un téléphone de test.
+  Même identifiant que l'application publiée : elle la remplace sur ce téléphone.
+  Avant de la distribuer : `node essais/controle-paquet.mjs <paquet> staging`
+  (refuse un paquet qui porte l'adresse de la production).
+- Le profil `preview` reste une version interne **branchée sur la production**.
 
 **Jamais dans ce dépôt ni dans l'application** : clé `service_role` ou `sb_secret_…`,
 mot de passe, clé PayPal/Azul, clé d'e-mail ou de WhatsApp, identifiants d'administrateur.
