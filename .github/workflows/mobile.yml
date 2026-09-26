@@ -278,6 +278,9 @@ jobs:
           xcrun simctl boot "$appareil"
           xcrun simctl bootstatus "$appareil" -b
           xcrun simctl install "$appareil" "build/Build/Products/Release-iphonesimulator/GoShipExpress.app"
+          # Le premier démarrage d'un simulateur migre ses données (~2 min) : le pilote
+          # XCTest de Maestro met alors plus que les 120 s prévues par défaut à répondre.
+          export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
           BASE_LOG="$RUNNER_TEMP/base.log" bash essais/natif/maestro.sh ios "$PWD/sortie-ios"
           xcrun simctl io "$appareil" screenshot "$PWD/sortie-ios/fin.png" || true
       - uses: actions/upload-artifact@v4
