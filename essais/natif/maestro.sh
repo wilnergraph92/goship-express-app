@@ -16,12 +16,32 @@ COLIS_JEAN=$(sql "select id from colis where numero = 'GSE-1026-HT';")
 echo "Colis d'essai : Marie $COLIS_MARIE, Jean $COLIS_JEAN"
 
 cd "$sortie"
+# Un parcours par lancement de Maestro : si son pilote (XCTest sur iOS) s'arrête en route,
+# le parcours suivant ne part pas d'un appareil injoignable.
+# Un parcours n'est relancé qu'une fois, et seulement quand c'est le pilote qui a lâché
+# (« Device became unreachable », « driver not ready ») : une assertion ratée ne se
+# rejoue jamais, elle fait échouer l'essai.
+lancer() {
+  maestro test \
+    -e COLIS_MARIE="$COLIS_MARIE" -e COLIS_JEAN="$COLIS_JEAN" \
+    --format junit --output "$sortie/maestro-$plateforme-$2.xml" \
+    --debug-output "$sortie/debogage/$2" \
+    "$1"
+}
+pilote_perdu() {
+  grep -qE "DeviceUnreachableException|driver not ready|Device became unreachable" "$sortie/maestro-$plateforme-$1.xml" 2>/dev/null
+}
 statut=0
-maestro test \
-  -e COLIS_MARIE="$COLIS_MARIE" -e COLIS_JEAN="$COLIS_JEAN" \
-  --format junit --output "$sortie/maestro-$plateforme.xml" \
-  --debug-output "$sortie/debogage" \
-  "$racine/essais/maestro/" || statut=$?
+for parcours in "$racine"/essais/maestro/*.yaml; do
+  nom="$(basename "$parcours" .yaml)"
+  s=0; lancer "$parcours" "$nom" || s=$?
+  if [ "$s" -ne 0 ] && pilote_perdu "$nom"; then
+    echo "== $nom : le pilote de Maestro a lâché (pas une assertion) — nouvel essai, le seul"
+    mv "$sortie/maestro-$plateforme-$nom.xml" "$sortie/maestro-$plateforme-$nom-pilote-perdu.xml"
+    s=0; lancer "$parcours" "$nom" || s=$?
+  fi
+  if [ "$s" -ne 0 ]; then statut=$s; fi
+done
 
 if [ "$statut" -ne 0 ]; then
   # Les captures restent dans les artefacts ; le journal de la CI dit déjà l'essentiel :
@@ -35,15 +55,19 @@ if [ "$statut" -ne 0 ]; then
   # L'étape qui a échoué, telle que Maestro la rapporte (le résumé de la console ne donne
   # que le nom du parcours)
   echo "== Étape en échec"
-  python3 - "$sortie/maestro-$plateforme.xml" <<'PY' || true
+  python3 - "$sortie"/maestro-"$plateforme"-*.xml <<'PY' || true
 import sys, xml.etree.ElementTree as ET
-try:
-    racine = ET.parse(sys.argv[1]).getroot()
-except Exception as e:
-    sys.exit('rapport illisible : %s' % e)
-for cas in racine.iter('testcase'):
-    for echec in list(cas.iter('failure')) + list(cas.iter('error')):
-        print('%s : %s' % (cas.get('name'), (echec.get('message') or echec.text or '').strip()[:600]))
+for chemin in sys.argv[1:]:
+    if chemin.endswith('-pilote-perdu.xml'):
+        continue
+    try:
+        racine = ET.parse(chemin).getroot()
+    except Exception as e:
+        print('rapport illisible (%s) : %s' % (chemin, e))
+        continue
+    for cas in racine.iter('testcase'):
+        for echec in list(cas.iter('failure')) + list(cas.iter('error')):
+            print('%s : %s' % (cas.get('name'), (echec.get('message') or echec.text or '').strip()[:600]))
 PY
   echo "== Écran au moment de l'échec (textes et identifiants vus par Maestro)"
   maestro hierarchy > "$sortie/ecran-echec.json" 2>/dev/null || true
