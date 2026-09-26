@@ -226,6 +226,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
+      - uses: actions/setup-python@v5
+        if: matrix.env == 'essai'
+        with: { python-version: '3.12' }
       - name: Xcode le plus récent de la machine (Expo 57.1 suit Xcode 27)
         run: |
           ls -d /Applications/Xcode_*.app
@@ -257,9 +260,14 @@ jobs:
         if: matrix.env == 'essai'
         run: |
           bash essais/natif/depot-site.sh
-          brew install postgrest
+          # Même PostgREST que les essais Linux ; pour Mac il n'existe qu'en x64 (Rosetta).
+          # S'il ne démarre pas, celui de Homebrew (plus récent) prend le relais.
+          curl -sSL "https://github.com/PostgREST/postgrest/releases/download/$POSTGREST_VERSION/postgrest-$POSTGREST_VERSION-macos-x64.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
+          postgrest="$RUNNER_TEMP/postgrest"
+          "$postgrest" --version || { brew install postgrest; postgrest="$(command -v postgrest)"; }
+          # pgserver 0.1.4 n'a de paquets que jusqu'à Python 3.12 (setup-python plus haut)
           python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install pgserver==0.1.4
-          POSTGREST="$(command -v postgrest)" nohup "$RUNNER_TEMP/venv/bin/python" site/outils/essais-services/essai-mobile.py --serveur > "$RUNNER_TEMP/base.log" 2>&1 &
+          POSTGREST="$postgrest" nohup "$RUNNER_TEMP/venv/bin/python" site/outils/essais-services/essai-mobile.py --serveur > "$RUNNER_TEMP/base.log" 2>&1 &
           for i in $(seq 1 120); do grep -q "prête" "$RUNNER_TEMP/base.log" && break; sleep 2; done
           cat "$RUNNER_TEMP/base.log"
           curl -Ls "https://get.maestro.mobile.dev" | bash
