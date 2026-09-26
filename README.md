@@ -267,6 +267,7 @@ iOS), schéma `goshipexpress`, nom « GoShip Express ».
 
 Compatibilité (configuration actuelle) : Android 7.0 (API 24) et plus, cible API 36 ;
 iOS 15.1 et plus ; iPhone (et iPad en mode iPhone).
+Construction iOS : **Xcode 27** (Expo 57.1 ; Xcode 26 refuse `expo-modules-jsi`), d'où `macos-26` en CI.
 
 ### Avec EAS (builds des boutiques, signés)
 

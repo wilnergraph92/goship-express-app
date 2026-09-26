@@ -199,7 +199,9 @@ jobs:
   # ---- 3. iOS -----------------------------------------------------------------------
   ios:
     name: iOS — ${{ matrix.nom }}
-    runs-on: macos-15
+    # Expo 57.1 suit Xcode 27 (expo-modules-jsi annote ses constructeurs pour lui ;
+    # Xcode 26.3, le plus récent de macos-15, refuse ces annotations)
+    runs-on: macos-26
     timeout-minutes: 75
     strategy:
       fail-fast: false
@@ -224,8 +226,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
-      - name: Xcode le plus récent de la machine (Expo 57 demande Swift 6.2, Xcode 26)
+      - name: Xcode le plus récent de la machine (Expo 57.1 suit Xcode 27)
         run: |
+          ls -d /Applications/Xcode_*.app
           xcode=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
           echo "Xcode choisi : $xcode"
           sudo xcode-select -s "$xcode/Contents/Developer"
