@@ -6,20 +6,52 @@
   "build": {
     "development": {
       "distribution": "internal",
-      "env": { "EXPO_PUBLIC_GOSHIP_ENV": "production" },
-      "android": { "buildType": "apk", "gradleCommand": ":app:assembleDebug" },
-      "ios": { "simulator": true, "buildConfiguration": "Debug" }
+      "env": {
+        "EXPO_PUBLIC_GOSHIP_ENV": "production"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "env": { "EXPO_PUBLIC_GOSHIP_ENV": "production" },
-      "android": { "buildType": "apk" },
-      "ios": { "simulator": false }
+      "env": {
+        "EXPO_PUBLIC_GOSHIP_ENV": "production"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_GOSHIP_ENV": "staging",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://REMPLACER-PAR-LA-REF-DE-GOSHIP-STAGING.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_CLE": "sb_publishable_REMPLACER"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      }
     },
     "production": {
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_GOSHIP_ENV": "production" },
-      "android": { "buildType": "app-bundle" }
+      "env": {
+        "EXPO_PUBLIC_GOSHIP_ENV": "production"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {

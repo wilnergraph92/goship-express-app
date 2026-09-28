@@ -8,11 +8,14 @@
 //
 // Environnements (choisis au moment de construire l'application, jamais par l'utilisateur) :
 //   production  la vraie base — par défaut, et dans tout build des boutiques (eas.json)
+//   staging     la préproduction (projet Supabase goship-staging, profil EAS « staging ») :
+//               adresse et clé publiable dans EXPO_PUBLIC_SUPABASE_URL et
+//               EXPO_PUBLIC_SUPABASE_CLE, fixées au moment du build. Jamais l'adresse de
+//               la production (refusée ici, et par essais/controle-paquet.mjs).
 //   essai       une base jetable sur la machine d'essai (essais automatiques seulement) :
 //               son adresse vient de EXPO_PUBLIC_SUPABASE_URL, fixée au moment du build,
 //               si bien qu'aucune adresse locale n'entre dans l'application de production.
-// Il n'existe pas (encore) de base de préproduction : le profil « preview » d'eas.json
-// utilise la production. Voir README.md, « Environnements ».
+// Voir README.md, « Environnements », et docs/production/environment.md (dépôt du site).
 
 const PRODUCTION = {
   supabaseUrl: 'https://gpfdyslysqjmojgzggib.supabase.co',
@@ -21,12 +24,25 @@ const PRODUCTION = {
 
 // Expo remplace process.env.EXPO_PUBLIC_… par sa valeur au moment du build
 const environnement = process.env.EXPO_PUBLIC_GOSHIP_ENV || 'production';
-if (environnement !== 'production' && environnement !== 'essai') {
+if (!['production', 'staging', 'essai'].includes(environnement)) {
   throw new Error('Environnement inconnu : ' + environnement);
 }
+
+// La préproduction : ses propres adresse et clé publiable. Elle ne cite jamais la
+// production (qui n'entre ainsi pas dans son paquet) ; qu'elle n'y pointe pas, c'est
+// essais/controle-paquet.mjs <paquet> staging qui le vérifie sur l'application construite.
+function preproduction() {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+  const cle = process.env.EXPO_PUBLIC_SUPABASE_CLE || '';
+  if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url) || !cle.startsWith('sb_publishable_') || /REMPLACER/.test(url + cle)) {
+    throw new Error('Préproduction mal configurée : EXPO_PUBLIC_SUPABASE_URL et EXPO_PUBLIC_SUPABASE_CLE (eas.json, profil staging)');
+  }
+  return { supabaseUrl: url, supabaseKey: cle };
+}
+
 const serveur = environnement === 'essai'
   ? { supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL, supabaseKey: 'cle-publique-essai' }
-  : PRODUCTION;
+  : environnement === 'staging' ? preproduction() : PRODUCTION;
 
 export default {
   environnement,

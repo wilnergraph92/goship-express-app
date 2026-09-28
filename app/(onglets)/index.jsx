@@ -17,7 +17,7 @@ import { CarteColis } from '../../components/colis';
 import { useLangue } from '../../lib/i18n';
 import { useSession } from '../../lib/session';
 import { useDonnees } from '../../lib/useDonnees';
-import { mesColis, monResume, surveiller } from '../../lib/api';
+import { mesColis, monResume, notificationsNonLues, surveiller } from '../../lib/api';
 import { dateRelative, montant, libelleStatut } from '../../lib/format';
 
 function adresseComplete(profil) {
@@ -42,8 +42,11 @@ export default function Accueil() {
   const premier = useRef(true);
 
   const { donnees, erreur, recharger, rafraichit, tirer, chargement } = useDonnees(async () => {
-    const [resume, derniers] = await Promise.all([monResume(), mesColis({ parPage: 3 })]);
-    return { resume, derniers: derniers.lignes };
+    // Le badge des notifications est compté par la base ; une base sans la Phase 11
+    // n'en a pas, et la cloche n'affiche alors aucun chiffre (rien d'inventé)
+    const [resume, derniers, nonLues] = await Promise.all([
+      monResume(), mesColis({ parPage: 3 }), notificationsNonLues().catch(() => null)]);
+    return { resume, derniers: derniers.lignes, nonLues };
   }, []);
 
   // À chaque retour sur l'accueil, et à chaque changement fait par l'équipe
@@ -77,15 +80,31 @@ export default function Accueil() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Image source={require('../../assets/logo-goship-blanc.png')} style={{ width: 108, height: 27 }}
             resizeMode="contain" accessibilityLabel="GoShip Express" />
-          <Pressable
-            onPress={() => router.push('/(onglets)/colis')}
-            style={styles.rond}
-            accessibilityRole="button"
-            accessibilityLabel={t('co.titre')}
-          >
-            <Feather name="package" size={19} color="#ffffff" />
-            {c.disponibles > 0 || c.action_requise > 0 ? <View style={styles.pastille} /> : null}
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 9 }}>
+            <Pressable
+              onPress={() => router.push('/notifications')}
+              style={styles.rond}
+              accessibilityRole="button"
+              accessibilityLabel={t('no.titre') + (donnees?.nonLues ? ', ' + t('no.non_lues', { n: donnees.nonLues }) : '')}
+              testID="accueil-notifs"
+            >
+              <Feather name="bell" size={19} color="#ffffff" />
+              {donnees?.nonLues > 0 ? (
+                <View style={styles.badge} testID="accueil-notifs-badge">
+                  <Texte gras taille={10.5} style={{ color: '#ffffff' }}>{donnees.nonLues > 99 ? '99+' : donnees.nonLues}</Texte>
+                </View>
+              ) : null}
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(onglets)/colis')}
+              style={styles.rond}
+              accessibilityRole="button"
+              accessibilityLabel={t('co.titre')}
+            >
+              <Feather name="package" size={19} color="#ffffff" />
+              {c.disponibles > 0 || c.action_requise > 0 ? <View style={styles.pastille} /> : null}
+            </Pressable>
+          </View>
         </View>
 
         <Texte taille={13} style={{ marginTop: 20, color: couleurs.surNuit }}>{t('ac.bonjour')}</Texte>
@@ -279,6 +298,8 @@ const styles = StyleSheet.create({
   },
   halo: { position: 'absolute', top: -70, right: -60, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(244,96,13,0.20)' },
   rond: { width: 44, height: 44, borderRadius: 14, backgroundColor: couleurs.voileClair, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: 4, right: 3, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center',
+    justifyContent: 'center', backgroundColor: couleurs.accent, borderWidth: 2, borderColor: couleurs.nuit },
   pastille: { position: 'absolute', top: 9, right: 10, width: 9, height: 9, borderRadius: 5, backgroundColor: couleurs.accent, borderWidth: 2, borderColor: couleurs.nuit },
   puceCode: {
     alignSelf: 'flex-start',

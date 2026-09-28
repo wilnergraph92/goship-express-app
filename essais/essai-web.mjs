@@ -301,6 +301,41 @@ async function main() {
   await aller('/facture/' + factureJean);
   verifier('lien vers la facture de Jean : introuvable', await page.getByText('Introuvable').first().waitFor({ timeout: 8000 }).then(() => true).catch(() => false), true);
 
+  console.log('G2. Notifications : celles de la base, le badge, lu (Phase 11)');
+  await aller('/');
+  await visible('stat-en-cours-nombre', 15000);
+  const nonLuesBase = Number(await commeClient(MARIE, 'select public.notifications_non_lues();'));
+  verifier('badge de la cloche = non lues comptées par la base', nonLuesBase > 0 && (await texte('accueil-notifs-badge')), String(nonLuesBase));
+  await id('accueil-notifs').click();
+  await visible('notifs-liste', 15000);
+  const liste = JSON.parse(await commeClient(MARIE, "select public.mes_notifications('toutes', 0, 20, 'fr')::text;"));
+  const premiere = liste.elements[0];
+  verifier('la plus récente en tête, texte écrit par la base',
+    (await texte('notif-' + premiere.id)).includes(premiere.titre) && (await texte('notif-' + premiere.id)).includes(premiere.message), true);
+  await capture('08-notifications');
+  await id('notif-' + premiere.id).click();
+  const cible = premiere.colis_id ? 'detail-numero' : 'facture-payer';
+  verifier('toucher une notification ouvre son colis ou sa facture', await visible(premiere.colis_id ? 'detail-statut' : 'paiement-montant', 15000) ||
+    await visible(cible, 3000), true);
+  await attendre(800);
+  verifier('… et la marque lue dans la base',
+    await sql(`select lu_le is not null from notifications where id = ${premiere.id};`), 't');
+  await aller('/notifications');
+  await visible('notifs-liste', 15000);
+  await id('notifs-filtre-factures').click();
+  await attendre(1200);
+  const factNotifs = JSON.parse(await commeClient(MARIE, "select public.mes_notifications('factures', 0, 20, 'fr')::text;"));
+  verifier('filtre « Factures » : les mêmes que la base',
+    await page.locator('[data-testid^="notif-"]:not([data-testid^="notif-non-lue"])').count(), factNotifs.elements.length);
+  await id('notifs-filtre-toutes').click();
+  await visible('notifs-tout-lu', 10000);
+  await id('notifs-tout-lu').click();
+  await attendre(1200);
+  verifier('tout marquer lu : zéro non lue dans la base', await commeClient(MARIE, 'select public.notifications_non_lues();'), '0');
+  await aller('/');
+  await visible('stat-en-cours-nombre', 15000);
+  verifier('plus de badge sur la cloche', await visible('accueil-notifs-badge', 2000), false);
+
   console.log('H. Isolation depuis la session de l\'application');
   const direct = await page.evaluate(async ({ base, jean, idJean: c }) => {
     const cle = Object.keys(localStorage).find((k) => /^sb-.*-auth-token$/.test(k));
