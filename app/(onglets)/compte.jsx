@@ -1,7 +1,7 @@
 // Mon compte : code client, réglages, langue, notifications, aide et déconnexion.
 
 import { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, Pressable, Linking, StyleSheet } from 'react-native';
+import { View, ScrollView, Pressable, Linking, ActivityIndicator, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -11,8 +11,9 @@ import config from '../../config';
 import { couleurs, rayons, ombres, polices } from '../../lib/theme';
 import { Titre, Texte, Mono, Etiquette } from '../../components/ui';
 import { useLangue, LANGUES } from '../../lib/i18n';
-import { useSession } from '../../lib/session';
-import { majProfil } from '../../lib/api';
+import { useSession, poserAvisConnexion } from '../../lib/session';
+import { majProfil, supprimerMonCompte } from '../../lib/api';
+import { messageErreur } from '../../lib/erreurs';
 import { activerNotifications, etatNotifications, surEtatNotifications } from '../../lib/notifications';
 
 // « 1.0.0 (3) » : la version affichée dans les boutiques, et le numéro de build
@@ -30,14 +31,18 @@ export default function Compte() {
   const [confirmer, setConfirmer] = useState(false);
   const [notif, setNotif] = useState(etatNotifications());
   const [details, setDetails] = useState(false);
+  // Supprimer mon compte : la question, l'envoi en cours, le refus de la base
+  const [supprimer, setSupprimer] = useState(false);
+  const [suppression, setSuppression] = useState(false);
+  const [refusSuppression, setRefusSuppression] = useState('');
   const defilement = useRef(null);
 
   useEffect(() => surEtatNotifications(setNotif), []);
   // La question « Se déconnecter ? » s'ouvre à la place du bouton, en bas de la page : sur
   // un petit écran elle tomberait sous la barre d'onglets, on la fait venir sous les yeux
   useEffect(() => {
-    if (confirmer) setTimeout(() => defilement.current?.scrollToEnd({ animated: true }), 0);
-  }, [confirmer]);
+    if (confirmer || supprimer) setTimeout(() => defilement.current?.scrollToEnd({ animated: true }), 0);
+  }, [confirmer, supprimer]);
 
   const initiales = (profil?.nom_complet || '')
     .split(' ')
@@ -63,6 +68,23 @@ export default function Compte() {
   async function seDeconnecter() {
     await deconnexion();
     router.replace('/connexion');
+  }
+
+  // La base supprime (ou refuse, avec la raison) ; rien n'est annoncé sans sa réponse.
+  // Supprimé : la session de ce téléphone est fermée, l'écran de connexion le dit.
+  async function supprimerLeCompte() {
+    if (suppression) return;
+    setSuppression(true);
+    setRefusSuppression('');
+    try {
+      await supprimerMonCompte();
+      poserAvisConnexion('cp.supprime');
+      await deconnexion().catch(() => {});
+      router.replace('/connexion');
+    } catch (e) {
+      setRefusSuppression(messageErreur(e, t));
+      setSuppression(false);
+    }
   }
 
   return (
@@ -132,8 +154,35 @@ export default function Compte() {
             onPress={() => Linking.openURL(`https://wa.me/${config.whatsapp}`).catch(() => {})}
           />
           <Ligne icone="shield" titre={t('cp.confidentialite')} onPress={() => Linking.openURL(config.siteUrl + 'confidentialite.html').catch(() => {})} />
-          <Ligne icone="user-x" titre={t('cp.fermer')} onPress={() => Linking.openURL(config.siteUrl + 'fermer-un-compte.html').catch(() => {})} dernier />
+          <Ligne icone="user-x" titre={t('cp.supprimer')} danger ouvert={supprimer} id="compte-supprimer" dernier
+            onPress={() => { setSupprimer((v) => !v); setRefusSuppression(''); setConfirmer(false); }} />
         </View>
+
+        {supprimer ? (
+          <View style={[styles.confirmer, styles.confirmerDanger, ombres.carte]} testID="compte-supprimer-question">
+            <Texte gras taille={15} style={{ textAlign: 'center' }}>{t('cp.supprimer_titre')}</Texte>
+            <Texte doux taille={13} style={{ textAlign: 'center', marginTop: 8, lineHeight: 19 }}>{t('cp.supprimer_texte')}</Texte>
+            {refusSuppression ? (
+              <View style={styles.refus} testID="compte-supprimer-refus">
+                <Feather name="alert-circle" size={17} color={couleurs.rouge} />
+                <Texte taille={13} style={{ flex: 1, lineHeight: 19 }}>{refusSuppression}</Texte>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              <Pressable onPress={() => { setSupprimer(false); setRefusSuppression(''); }} disabled={suppression}
+                style={[styles.bouton, { borderColor: couleurs.bordFort }]} accessibilityRole="button">
+                <Texte gras taille={14}>{t('gen.annuler')}</Texte>
+              </Pressable>
+              <Pressable onPress={supprimerLeCompte} disabled={suppression}
+                style={[styles.bouton, { borderColor: couleurs.rouge, backgroundColor: couleurs.rouge, opacity: suppression ? 0.6 : 1 }]}
+                accessibilityRole="button" accessibilityState={{ busy: suppression }} testID="compte-supprimer-oui">
+                {suppression
+                  ? <ActivityIndicator color="#ffffff" />
+                  : <Texte gras taille={14} style={{ color: '#ffffff', textAlign: 'center' }}>{t('cp.supprimer_oui')}</Texte>}
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {confirmer ? (
           <View style={[styles.confirmer, ombres.carte]}>
@@ -149,7 +198,7 @@ export default function Compte() {
             </View>
           </View>
         ) : (
-          <Pressable onPress={() => setConfirmer(true)} style={styles.deconnexion} accessibilityRole="button" testID="compte-deconnexion">
+          <Pressable onPress={() => { setConfirmer(true); setSupprimer(false); }} style={styles.deconnexion} accessibilityRole="button" testID="compte-deconnexion">
             <Feather name="log-out" size={18} color={couleurs.rouge} />
             <Texte gras taille={14.5} style={{ color: couleurs.rouge }}>{t('cp.deconnexion')}</Texte>
           </Pressable>
@@ -163,7 +212,7 @@ export default function Compte() {
   );
 }
 
-function Ligne({ icone, titre, valeur, onPress, dernier, ouvert, id }) {
+function Ligne({ icone, titre, valeur, onPress, dernier, ouvert, id, danger }) {
   return (
     <Pressable
       onPress={onPress}
@@ -173,10 +222,10 @@ function Ligne({ icone, titre, valeur, onPress, dernier, ouvert, id }) {
       style={({ pressed }) => [styles.ligne, !dernier && styles.ligneBord, pressed && { backgroundColor: '#f7f9fd' }]}
       testID={id}
     >
-      <View style={styles.ligneRond}>
-        <Feather name={icone} size={18} color={couleurs.texte} />
+      <View style={[styles.ligneRond, danger && { backgroundColor: 'rgba(192,57,43,0.08)' }]}>
+        <Feather name={icone} size={18} color={danger ? couleurs.rouge : couleurs.texte} />
       </View>
-      <Texte gras taille={14.5} style={{ flex: 1 }}>{titre}</Texte>
+      <Texte gras taille={14.5} style={[{ flex: 1 }, danger && { color: couleurs.rouge }]}>{titre}</Texte>
       {valeur ? <Texte doux gras taille={13} numberOfLines={2} style={{ maxWidth: 150, textAlign: 'right' }}>{valeur}</Texte> : null}
       <Feather name={ouvert ? 'chevron-down' : 'chevron-right'} size={17} color={couleurs.texteFaible} />
     </Pressable>
@@ -232,5 +281,7 @@ const styles = StyleSheet.create({
     backgroundColor: couleurs.carte,
   },
   confirmer: { marginTop: 14, padding: 16, borderRadius: rayons.carte, backgroundColor: couleurs.carte, borderWidth: 1, borderColor: couleurs.bord },
+  confirmerDanger: { borderColor: '#f3d3cb' },
+  refus: { flexDirection: 'row', gap: 9, alignItems: 'flex-start', marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: 'rgba(192,57,43,0.07)' },
   bouton: { flex: 1, minHeight: 48, borderRadius: rayons.bouton, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
 });

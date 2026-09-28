@@ -168,6 +168,14 @@ async function main() {
   await aller('/colis/' + colis('GSE-1002-HT').id);
   await visible('detail-statut');
   verifier('opération interne (inspection) invisible', (await etapes()).length, 5);
+  // Le statut n'est plus rogné sous l'en-tête : le point au centre de son titre est bien lui
+  verifier('le titre du statut est visible, pas caché sous l\'en-tête', await page.evaluate(() => {
+    const e = document.querySelector('[data-testid="detail-statut"]');
+    const r = e.getBoundingClientRect();
+    const dessus = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !!dessus && (e === dessus || e.contains(dessus));
+  }), true);
+  verifier('destination : ville et pays', await page.getByText('Pétion-Ville, Haïti').count(), 1);
   await aller('/colis/' + colis('GSE-1004-HT').id);
   await visible('detail-statut');
   verifier('étape corrigée invisible, statut corrigé', [await texte('detail-statut'), await etapes()], ['Emballé', ['Emballé', 'Reçu']]);
@@ -363,6 +371,34 @@ async function main() {
   verifier('après déconnexion, « retour » ne rouvre aucun écran privé',
     [await visible('connexion-email', 5000), await page.getByText('Marie-Ange Dorvil').count()], [true, 0]);
   verifier('plus de session dans le stockage', await page.evaluate(() => Object.keys(localStorage).filter((k) => /auth-token/.test(k)).length), 0);
+
+  console.log('J bis. Supprimer mon compte (la base décide)');
+  await seConnecter('marie@exemple.com', 'marie-essai-1');
+  await visible('stat-en-cours-nombre', 15000);
+  await onglet('compte');
+  await id('compte-supprimer').click();
+  await visible('compte-supprimer-question');
+  await id('compte-supprimer-oui').click();
+  verifier('Marie, colis en route : refusé, avec la raison de la base',
+    await visible('compte-supprimer-refus', 15000) && (await texte('compte-supprimer-refus')).startsWith('Vous avez encore des colis'), true);
+  verifier('… et rien n\'a changé', await sql("select nom_complet || '|' || (supprime_le is null) from clients where email = 'marie@exemple.com';"),
+    'Marie-Ange Dorvil|true');
+  await id('compte-deconnexion').click();
+  await id('compte-deconnexion-oui').click();
+  await seConnecter('lea@exemple.com', 'lea-essai-1');
+  await visible('stat-en-cours-nombre', 15000);
+  await onglet('compte');
+  await id('compte-supprimer').click();
+  await id('compte-supprimer-oui').click();
+  verifier('Léa, rien en cours : supprimée, retour à la connexion avec « Votre compte a été supprimé. »',
+    await visible('connexion-ok', 20000) && (await texte('connexion-ok')), 'Votre compte a été supprimé.');
+  verifier('la base : profil vidé, date de suppression', await sql("select nom_complet || '|' || email || '|' || (supprime_le is not null) "
+    + "from clients where id = 'eeeeeeee-0000-0000-0000-00000000000e';"), 'Compte supprimé||true');
+  verifier('plus de session dans le stockage', await page.evaluate(() => Object.keys(localStorage).filter((k) => /auth-token/.test(k)).length), 0);
+  await id('connexion-email').fill('lea@exemple.com');
+  await id('connexion-mdp').fill('lea-essai-1');
+  await page.keyboard.press('Enter');
+  verifier('Léa ne peut plus se connecter', await visible('connexion-erreur', 15000), true);
 
   console.log('K. Compte de l\'équipe, inscription, langue');
   await seConnecter('employe@goship.test', 'employe-essai-1');

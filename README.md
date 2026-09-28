@@ -119,6 +119,7 @@ propre compte (`client_id`).
 | Factures, paiements, solde | `mes_factures()` (total, payé, solde, état, lignes, paiements) et `mon_resume()` |
 | Rôle | `mes_permissions()` (affichage seulement) |
 | Téléphone | `enregistrer_appareil()` ; à la déconnexion, suppression de son jeton |
+| Supprimer mon compte (Compte) | `supprimer_mon_compte('SUPPRIMER')` : la base vide le profil, bloque la connexion, ferme les sessions ; refusé tant qu'un colis n'est pas livré ou qu'une facture reste à payer |
 
 Statuts : les huit statuts officiels du site (`recu`, `emballe`, `embarque`,
 `distribution`, `succursale`, `disponible`, `livre`, `incident`), rien d'autre. Un
@@ -126,6 +127,8 @@ numéro GoShip (`GSE-1001-HT`) désigne le même colis sur le site, le bureau et
 
 La base doit avoir reçu `outils/supabase-mobile.sql` (dépôt du site). Sans lui, la
 pré-alerte passe encore par l'ancien chemin (insert direct), sans ses garanties.
+« Supprimer mon compte » demande `outils/supabase-compte.sql` (le dernier de la chaîne) :
+sans lui, l'application le dit (« pas encore disponible ») et propose WhatsApp.
 
 ## Authentification et session
 
@@ -255,7 +258,8 @@ npm run essai:web          # CHROMIUM=/chemin/de/chrome si besoin
 ```
 
 Comptes d'essai (base jetable uniquement) : `marie@exemple.com` / `marie-essai-1`,
-`jean@exemple.com` / `jean-essai-1`, `employe@goship.test` / `employe-essai-1`.
+`jean@exemple.com` / `jean-essai-1`, `employe@goship.test` / `employe-essai-1`,
+`lea@exemple.com` / `lea-essai-1` (sans colis : `essai:web` la supprime).
 
 GitHub Actions (`.github/workflows/mobile.yml`) lance tout cela à chaque changement et
 dépose les APK/AAB et l'application iOS dans l'onglet Actions (« Artifacts »).
@@ -325,8 +329,13 @@ paiements, jeton de notification du téléphone (et sa plateforme, sa langue), l
 Sur le téléphone : la session (coffre-fort) et la langue choisie ; rien d'autre.
 Transmission : HTTPS vers Supabase ; notifications par le service d'Expo (Apple, Google).
 Aucune publicité, aucun suivi, aucune analyse d'usage, aucune localisation, aucun contact.
-Suppression : « Fermer mon compte » (page du site) ; le jeton du téléphone est effacé à la
-déconnexion. La politique de confidentialité (`confidentialite.html`) doit mentionner le
+Suppression : **Compte > Supprimer mon compte**, dans l'application (exigé par l'App
+Store et Google Play). La base efface nom, e-mail, téléphone et adresse, bloque la
+connexion pour toujours, ferme les sessions, efface les téléphones et les pré-alertes en
+attente ; les factures et l'historique des colis restent, sans coordonnées (obligation
+comptable). La page « Fermer un compte » du site reste l'adresse web à déclarer aux
+boutiques pour une demande faite hors de l'application. Le jeton du téléphone est aussi
+effacé à chaque déconnexion. La politique de confidentialité (`confidentialite.html`) doit mentionner le
 jeton de notification et la caméra (scan, aucune image gardée) — à vérifier par GoShip
 Express. Pour les boutiques : « Data safety » (Play) et « App Privacy » (Apple) à remplir
 avec cette liste.
@@ -340,7 +349,7 @@ avec cette liste.
   de paiement (banque, Azul, MonCash, NatCash) dans `config.js` ; captures d'écran,
   description, catégorie, adresse de support et politique de confidentialité pour les
   boutiques.
-- `outils/supabase-mobile.sql` exécuté dans Supabase.
+- `outils/supabase-mobile.sql` et `outils/supabase-compte.sql` exécutés dans Supabase.
 
 ## Dépannage
 

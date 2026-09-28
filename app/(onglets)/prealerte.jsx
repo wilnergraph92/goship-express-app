@@ -152,7 +152,7 @@ export default function PreAlerte() {
           ))}
         </View>
 
-        <Champ etiquette={t('pa.contenu')} value={champs.description} onChangeText={poser('description')} placeholder="…"
+        <Champ etiquette={t('pa.contenu')} value={champs.description} onChangeText={poser('description')} placeholder={t('pa.contenu_ph')}
           erreur={erreurs.description} maxLength={300} testID="pa-contenu" />
 
         <View style={{ gap: 7 }}>

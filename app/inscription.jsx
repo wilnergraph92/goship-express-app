@@ -92,6 +92,8 @@ export default function Inscription() {
                 style={{
                   flex: 1,
                   minHeight: 50,
+                  paddingHorizontal: 6,
+                  paddingVertical: 6,
                   borderRadius: rayons.champ,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -100,7 +102,7 @@ export default function Inscription() {
                   borderColor: champs.pays === p.code ? couleurs.nuit : couleurs.bord,
                 }}
               >
-                <Texte gras taille={13} style={{ color: champs.pays === p.code ? '#ffffff' : couleurs.texte }} numberOfLines={1}>
+                <Texte gras taille={13} style={{ color: champs.pays === p.code ? '#ffffff' : couleurs.texte, textAlign: 'center' }} numberOfLines={2}>
                   {t(p.cle)}
                 </Texte>
               </Pressable>

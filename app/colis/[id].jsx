@@ -18,7 +18,7 @@ import { useLangue } from '../../lib/i18n';
 import { useSession } from '../../lib/session';
 import { useDonnees } from '../../lib/useDonnees';
 import { unColis, surveiller } from '../../lib/api';
-import { dateRelative, libelleStatut, libelleService, libellePays, poids } from '../../lib/format';
+import { dateRelative, libelleStatut, libelleService, destinationLisible, poids } from '../../lib/format';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -51,6 +51,11 @@ export default function DetailColis() {
   const s = colis ? (STATUTS[colis.statut] || STATUTS.recu) : STATUTS.recu;
   // Les étapes, de la plus récente à la plus ancienne
   const etapes = colis ? colis.historique.slice().reverse() : [];
+  // L'heure et le lieu du statut sont ceux de sa dernière étape, comme dans la liste des
+  // étapes plus bas : maj_le bouge aussi quand l'équipe corrige une autre information
+  const derniere = etapes[0];
+  const quand = derniere ? derniere.cree_le : colis?.maj_le;
+  const ou = (derniere && derniere.lieu) || colis?.lieu || '';
 
   function ecrire() {
     const texte = `GoShip Express — ${colis?.numero || ''}`;
@@ -93,6 +98,9 @@ export default function DetailColis() {
         <View style={{ paddingTop: 20 }}><EtatErreur erreur={erreur} onReessayer={recharger} /></View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+          {/* Le prolongement de l'en-tête, dans la zone qui défile : la carte du statut le
+              chevauche sans être rognée (Android coupe tout ce qui dépasse d'un ScrollView) */}
+          <View style={styles.rallonge} />
           <View style={[styles.carteStatut, ombres.carte]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
               <View style={[styles.rondStatut, { backgroundColor: s.fond }]}>
@@ -101,7 +109,7 @@ export default function DetailColis() {
               <View style={{ flex: 1, gap: 3 }}>
                 <Titre taille={18} testID="detail-statut">{libelleStatut(colis.statut, langue)}</Titre>
                 <Texte doux taille={12.5}>
-                  {dateRelative(colis.maj_le, langue)}{colis.lieu ? ` · ${colis.lieu}` : ''}
+                  {dateRelative(quand, langue)}{ou ? ` · ${ou}` : ''}
                 </Texte>
               </View>
             </View>
@@ -120,7 +128,7 @@ export default function DetailColis() {
             <Info etiquette={t('de.poids')} valeur={poids(colis.poids_lb, langue)} />
             <Info etiquette={t('de.service')} valeur={libelleService(colis.service, langue)} />
             {colis.expediteur ? <Info etiquette={t('de.magasin')} valeur={colis.expediteur} /> : null}
-            <Info etiquette={t('de.destination')} valeur={colis.destination || libellePays(colis.pays_destination, langue)} />
+            <Info etiquette={t('de.destination')} valeur={destinationLisible(colis, langue)} large />
             {colis.suivi_transporteur ? <Info etiquette={t('de.suivi_magasin')} valeur={colis.suivi_transporteur} large mono /> : null}
           </View>
 
@@ -187,13 +195,14 @@ function Info({ etiquette, valeur, large, mono }) {
       <Etiquette>{etiquette}</Etiquette>
       {mono
         ? <Mono taille={13.5} style={{ marginTop: 5 }} selectable>{valeur}</Mono>
-        : <Texte gras taille={14.5} style={{ marginTop: 5 }} numberOfLines={large ? 3 : 1}>{valeur}</Texte>}
+        : <Texte gras taille={14.5} style={{ marginTop: 5 }} numberOfLines={3}>{valeur}</Texte>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  entete: { backgroundColor: couleurs.nuit, paddingHorizontal: 18, paddingBottom: 46, overflow: 'hidden' },
+  entete: { backgroundColor: couleurs.nuit, paddingHorizontal: 18, paddingBottom: 12, overflow: 'hidden' },
+  rallonge: { height: 34, backgroundColor: couleurs.nuit },
   halo: { position: 'absolute', top: -90, right: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(244,96,13,0.18)' },
   rond: { width: 44, height: 44, borderRadius: 14, backgroundColor: couleurs.voileClair, alignItems: 'center', justifyContent: 'center' },
   rondClair: { width: 52, height: 52, borderRadius: rayons.bouton, borderWidth: 1.5, borderColor: couleurs.bordFort, alignItems: 'center', justifyContent: 'center' },

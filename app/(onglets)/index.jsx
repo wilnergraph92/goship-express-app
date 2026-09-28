@@ -105,6 +105,9 @@ export default function Accueil() {
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={rafraichit} onRefresh={tirer} tintColor={couleurs.accent} />}
       >
+        {/* Le bas de l'en-tête, dans la zone qui défile : la carte le chevauche sans être
+            rognée (Android coupe tout ce qui dépasse d'un ScrollView) */}
+        <View style={styles.rallonge} />
         {equipe ? (
           <View style={[styles.carteAdresse, ombres.carte]} testID="accueil-equipe">
             <Texte taille={13.5} style={{ lineHeight: 20 }}>{t('ac.equipe')}</Texte>
@@ -272,11 +275,10 @@ const styles = StyleSheet.create({
   entete: {
     backgroundColor: couleurs.nuit,
     paddingHorizontal: 22,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingBottom: 4,
     overflow: 'hidden',
   },
+  rallonge: { height: 26, backgroundColor: couleurs.nuit, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   halo: { position: 'absolute', top: -70, right: -60, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(244,96,13,0.20)' },
   rond: { width: 44, height: 44, borderRadius: 14, backgroundColor: couleurs.voileClair, alignItems: 'center', justifyContent: 'center' },
   pastille: { position: 'absolute', top: 9, right: 10, width: 9, height: 9, borderRadius: 5, backgroundColor: couleurs.accent, borderWidth: 2, borderColor: couleurs.nuit },

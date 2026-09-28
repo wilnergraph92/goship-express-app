@@ -8,7 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import { couleurs, rayons } from '../lib/theme';
 import { Titre, Texte, Bouton, Champ } from '../components/ui';
 import { useLangue } from '../lib/i18n';
-import { useSession } from '../lib/session';
+import { useSession, prendreAvisConnexion } from '../lib/session';
 import { classer } from '../lib/erreurs';
 
 // Ce que l'écran dit d'un refus de connexion
@@ -29,7 +29,11 @@ export default function Connexion() {
   const [motDePasse, setMotDePasse] = useState('');
   const [visible, setVisible] = useState(false);
   const [occupe, setOccupe] = useState(false);
-  const [message, setMessage] = useState(null); // { type, texte }
+  // Un avis laissé par l'écran précédent (compte supprimé), lu une seule fois
+  const [message, setMessage] = useState(() => {
+    const cle = prendreAvisConnexion();
+    return cle ? { type: 'ok', texte: t(cle) } : null;
+  }); // { type, texte }
 
   async function entrer() {
     if (occupe) return;

@@ -86,7 +86,7 @@ export const CarteColis = memo(function CarteColis({ colis }) {
           <Frise statut={colis.statut} />
         </View>
         <Texte doux taille={11.5} style={{ marginTop: 9, color: couleurs.texteFaible }}>
-          {t('co.maj')} {dateRelative(colis.maj_le, langue)}
+          {t('co.maj')} {dateRelative(colis.maj_le, langue, true)}
         </Texte>
       </Pressable>
     </Link>

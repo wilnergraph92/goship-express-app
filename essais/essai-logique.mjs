@@ -185,5 +185,20 @@ const session = JSON.stringify({ access_token: 'x'.repeat(2500), user: { id: 'u'
   verifier('trousseau en panne : la déconnexion efface quand même', await coffre.getItem('sb-auth'), null);
 }
 
+console.log('G. Mise en forme (lib/format.js)');
+{
+  const PAYS = { 'pays.HT': 'Haïti', 'pays.DO': 'République dominicaine', 'pays.US': 'États-Unis' };
+  const source = lire('lib/format.js').replace(/^import .*$/gm, 'const traduire = (k) => (' + JSON.stringify(PAYS) + ')[k] || k;');
+  const F = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+  verifier('nom de ville tapé en minuscules ou en capitales', ['san isidro', 'PORT-AU-PRINCE', '  cap-haïtien ', 'santo domingo este', 'la romana']
+    .map(F.nomDeLieu), ['San Isidro', 'Port-au-Prince', 'Cap-Haïtien', 'Santo Domingo Este', 'La Romana']);
+  verifier('destination : ville et pays, ou le pays seul', [F.destinationLisible({ destination: 'san isidro', pays_destination: 'DO' }),
+    F.destinationLisible({ destination: '', pays_destination: 'HT' })], ['San Isidro, République dominicaine', 'Haïti']);
+  const maintenant = new Date().toISOString();
+  verifier('« aujourd\'hui » sans majuscule au milieu d\'une phrase', [F.dateRelative(maintenant, 'fr').split(' ')[0], F.dateRelative(maintenant, 'fr', true).split(' ')[0]],
+    ["Aujourd'hui", "aujourd'hui"]);
+  verifier('une date chiffrée reste telle quelle', F.dateRelative('2026-01-05T15:00:00Z', 'fr', true).slice(0, 10), '05/01/2026');
+}
+
 console.log(`${resultats.length} vérifications, ${resultats.filter(Boolean).length} réussies.`);
 process.exit(resultats.every(Boolean) ? 0 : 1);
