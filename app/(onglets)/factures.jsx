@@ -65,6 +65,9 @@ function ListeFactures() {
         contentContainerStyle={{ paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={rafraichit} onRefresh={tirer} tintColor={couleurs.accent} />}
       >
+        {/* Le bas de l'en-tête, dans la zone qui défile : la carte le chevauche sans être
+            rognée (Android coupe tout ce qui dépasse d'un ScrollView) */}
+        <View style={styles.rallonge} />
         <View style={[styles.carteSolde, ombres.carte]}>
           <Etiquette>{t('fa.solde')}</Etiquette>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 6 }}>
@@ -167,7 +170,8 @@ function CarteFacture({ facture: f }) {
 }
 
 const styles = StyleSheet.create({
-  entete: { backgroundColor: couleurs.nuit, paddingHorizontal: 20, paddingBottom: 52, overflow: 'hidden' },
+  entete: { backgroundColor: couleurs.nuit, paddingHorizontal: 20, paddingBottom: 12, overflow: 'hidden' },
+  rallonge: { height: 40, backgroundColor: couleurs.nuit },
   halo: { position: 'absolute', top: -70, right: -60, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(244,96,13,0.18)' },
   carteSolde: {
     marginHorizontal: 18,
