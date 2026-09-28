@@ -284,6 +284,14 @@ eas build --profile production --platform all      # AAB (Play) et IPA (App Stor
 eas submit --profile production --platform all
 ```
 
+Sans ordinateur, depuis GitHub : **Actions > « Construction EAS » > Run workflow**
+(`.github/workflows/eas.yml`), en choisissant la plateforme et le profil. Il faut le
+secret `EXPO_TOKEN` du dépôt (jeton d'accès du compte Expo, expo.dev > Account settings >
+Access tokens). Le lien du fichier construit s'écrit dans le résumé du run. La première
+construction iOS se fait depuis un ordinateur (`eas build -p ios`, connexion Apple) ; les
+suivantes peuvent passer par le workflow. Le profil `production` ne se construit que
+depuis `main`.
+
 Profils (`eas.json`) : `development` (APK de débogage, simulateur), `preview`
 (distribution interne), `production` (boutiques). Tous sur la base de production.
 Les numéros de build sont tenus par EAS (`appVersionSource: remote`,
