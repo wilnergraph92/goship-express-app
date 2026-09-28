@@ -1,0 +1,120 @@
+# ==========================================================================
+#  Construction EAS (builds signés, pour installer ou publier)
+# ==========================================================================
+#  Lancé à la main seulement : Actions > « Construction EAS » > Run workflow.
+#  La construction se fait sur les serveurs d'Expo (EAS Build), avec le compte
+#  Expo de GoShip Express ; ce workflow ne fait que la demander et attendre le
+#  résultat, puis écrit le lien du fichier dans le résumé.
+#
+#  Il faut, une fois :
+#    1. un compte Expo (expo.dev) et un jeton d'accès (expo.dev > Account
+#       settings > Access tokens), posé en secret EXPO_TOKEN du dépôt
+#       (Settings > Secrets and variables > Actions). Personne d'autre n'a à le
+#       voir : ni le journal, ni le résumé ne l'écrivent ;
+#    2. pour iOS, le compte Apple Developer : la première construction iOS se fait
+#       depuis un ordinateur (`eas build -p ios`, qui demande la connexion Apple et
+#       range les certificats chez Expo) ; ensuite ce workflow peut les réutiliser.
+#
+#  Profils (eas.json) : preview = APK Android à installer directement sur un
+#  téléphone pour essayer ; production = AAB pour Google Play, IPA pour l'App
+#  Store. Tous parlent à la vraie base. Rien n'est envoyé aux boutiques ici
+#  (c'est `eas submit`, à faire exprès).
+# ==========================================================================
+
+name: Construction EAS
+
+on:
+  workflow_dispatch:
+    inputs:
+      plateforme:
+        description: 'Plateforme'
+        type: choice
+        options: [android, ios, all]
+        default: android
+      profil:
+        description: 'Profil (preview = APK à installer ; production = boutiques)'
+        type: choice
+        options: [preview, production]
+        default: preview
+
+permissions:
+  contents: read
+
+# Deux constructions demandées coup sur coup attendent leur tour : chacune coûte des
+# minutes EAS, on n'en jette aucune
+concurrency:
+  group: eas
+  cancel-in-progress: false
+
+env:
+  EXPO_NO_TELEMETRY: 1
+  CI: 1
+
+jobs:
+  construire:
+    name: EAS — ${{ inputs.plateforme }}, ${{ inputs.profil }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Jeton Expo présent ?
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Le secret EXPO_TOKEN n'est pas posé (Settings > Secrets and variables > Actions). Voir l'en-tête de .github/workflows/eas.yml."
+            exit 1
+          fi
+
+      # Une version de boutique ne se construit que depuis main, déjà passée par
+      # tous les essais du workflow « Application mobile »
+      - name: Production depuis main seulement
+        if: inputs.profil == 'production' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Le profil production se construit depuis main seulement (ici : ${{ github.ref_name }})."
+          exit 1
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # Sans projectId dans app.json, EAS rattache le projet au compte du jeton (il
+      # le crée la première fois, le retrouve par son slug ensuite). Le numéro est
+      # écrit au résumé : le reporter dans app.json (extra.eas.projectId) évite ce pas.
+      - name: Projet EAS
+        run: |
+          if node -e "process.exit(require('./app.json').expo?.extra?.eas?.projectId ? 0 : 1)"; then
+            echo "Projet EAS : déjà dans app.json"
+          else
+            eas init --non-interactive --force
+            ID=$(node -e "console.log(require('./app.json').expo.extra.eas.projectId)")
+            {
+              echo "### Projet EAS"
+              echo "Rattaché au compte du jeton : \`$ID\`."
+              echo "À reporter dans \`app.json\` (\`expo.extra.eas.projectId\`)."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Construire (serveurs d'Expo)
+        env:
+          PLATEFORME: ${{ inputs.plateforme }}
+          PROFIL: ${{ inputs.profil }}
+        run: |
+          eas build --platform "$PLATEFORME" --profile "$PROFIL" \
+            --non-interactive --wait --json > builds.json
+          {
+            echo "### Construction EAS — $PLATEFORME, $PROFIL"
+            echo
+            echo "| Plateforme | Version | Build | État | Fichier |"
+            echo "|---|---|---|---|---|"
+            jq -r '.[] | "| \(.platform) | \(.appVersion // "?") | \(.appBuildVersion // "?") | \(.status) | \(.artifacts.buildUrl // .artifacts.applicationArchiveUrl // "—") |"' builds.json
+            echo
+            echo "Toutes les constructions : expo.dev > projet goship-express > Builds."
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Une construction finie autrement qu'en « FINISHED » rend le workflow rouge
+          jq -e 'all(.[]; (.status | ascii_upcase) == "FINISHED")' builds.json > /dev/null
