@@ -174,7 +174,7 @@ ou ouverte).
 
 **Pour qu'une notification arrive vraiment, il manque encore** :
 
-1. un projet EAS : `npx eas init` (écrit `extra.eas.projectId` dans `app.json`) ;
+1. un projet EAS : fait, `extra.eas.projectId` dans `app.json` (projet créé sur expo.dev) ;
 2. Android : un projet Firebase et sa clé FCM v1, déposée chez Expo (`eas credentials`) ;
 3. iOS : une clé APNs (compte Apple Developer), gérée par `eas credentials` ;
 4. un vrai téléphone (un simulateur ne reçoit rien).
@@ -278,7 +278,7 @@ Construction iOS : **Xcode 27** (Expo 57.1 ; Xcode 26 refuse `expo-modules-jsi`)
 ```bash
 npm install -g eas-cli
 eas login                      # compte Expo de GoShip Express
-eas init                       # une fois : crée le projet, écrit extra.eas.projectId
+# eas init : déjà fait, le projet EAS est dans app.json (extra.eas.projectId)
 eas build --profile preview --platform android     # APK à installer pour tester
 eas build --profile production --platform all      # AAB (Play) et IPA (App Store)
 eas submit --profile production --platform all
@@ -350,7 +350,7 @@ avec cette liste.
 
 ## Ce qui manque avant la publication
 
-- Comptes Google Play Console et Apple Developer ; `eas init` ; clés FCM et APNs.
+- Comptes Google Play Console et Apple Developer ; clés FCM et APNs.
 - Essais sur un vrai Android et un vrai iPhone (caméra sur de vrais codes, notifications,
   liens, performances) : la CI n'a qu'un émulateur et un simulateur.
 - Contenu : adresses et horaires des agences de Port-au-Prince et Santo Domingo, moyens
@@ -364,7 +364,7 @@ avec cette liste.
 | Symptôme | Cause probable |
 |---|---|
 | L'application de test parle à la vraie base | build sans `--clear` : utilisez les scripts npm ; `essais/controle-paquet.mjs` le détecte |
-| « Pas encore en service » (notifications) | pas de projet EAS (`eas init`) ou de clés FCM/APNs |
+| « Pas encore en service » (notifications) | build sans projet EAS (`extra.eas.projectId` retiré d'`app.json`) |
 | Rien ne s'affiche après la connexion (Expo Go) | vérifiez le réseau ; Expo Go ne gère pas les notifications, c'est normal |
 | Pré-alerte : « déjà annoncé » | même numéro de suivi déjà en attente : c'est la base qui refuse le doublon |
 | `essai:web` : « Base d'essai absente » | lancez `essai-mobile.py --serveur` dans le dépôt du site |

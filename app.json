@@ -79,7 +79,10 @@
       ]
     ],
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "eded5349-68b1-4a06-bbcd-155565704348"
+      }
     },
     "locales": {
       "fr": "./langues/fr.json",

@@ -83,13 +83,15 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      # Sans projectId dans app.json, EAS rattache le projet au compte du jeton (il
-      # le crée la première fois, le retrouve par son slug ensuite). Le numéro est
-      # écrit au résumé : le reporter dans app.json (extra.eas.projectId) évite ce pas.
+      # Le projet EAS est celui d'app.json (extra.eas.projectId, créé sur expo.dev) :
+      # chaque construction le nomme au résumé. Sans lui, EAS rattacherait le projet au
+      # compte du jeton (le crée la première fois, le retrouve par son slug ensuite).
       - name: Projet EAS
         run: |
           if node -e "process.exit(require('./app.json').expo?.extra?.eas?.projectId ? 0 : 1)"; then
-            echo "Projet EAS : déjà dans app.json"
+            ID=$(node -e "console.log(require('./app.json').expo.extra.eas.projectId)")
+            echo "Projet EAS : $ID (app.json)"
+            echo "Projet EAS : \`$ID\` (\`app.json\`)." >> "$GITHUB_STEP_SUMMARY"
           else
             eas init --non-interactive --force
             ID=$(node -e "console.log(require('./app.json').expo.extra.eas.projectId)")
