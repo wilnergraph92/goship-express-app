@@ -22,7 +22,7 @@
     "android": {
       "package": "com.goshipexpress.app",
       "adaptiveIcon": {
-        "backgroundColor": "#061a3f",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
