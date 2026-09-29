@@ -140,6 +140,18 @@ passe. Elle se renouvelle seule ; si le serveur la refuse et qu'elle ne peut pas
 renouvelée, l'application revient à la connexion avec « Votre session a expiré ».
 Après une déconnexion, aucun écran privé ne reste accessible (même avec « retour »).
 
+**Continuer avec Google** (écrans *Connexion* et *Inscription*) : le navigateur du
+téléphone s'ouvre sur Google (`expo-web-browser`, `signInWithOAuth`), puis Google rend la
+main à l'application par `goshipexpress://connexion` ; la session s'ouvre avec les jetons
+reçus (`lib/session.js`, `connexionAvec`). Le bouton n'apparaît que si Supabase a activé
+Google (réglages publics `/auth/v1/settings`, `lib/connexion-sociale.js`), et jamais dans
+la version navigateur (elle ne sert qu'aux essais). Réglages à faire une fois : guide
+« Continuer avec Google » du README du site (client OAuth Google, fournisseur dans
+Supabase, `goshipexpress://**` dans *Authentication > URL Configuration > Redirect URLs*,
+migration `outils/supabase-connexion.sql`). Un compte Google n'a ni pays, ni ville, ni
+téléphone : l'accueil propose « Complétez votre profil », qui ouvre *Mes informations*
+(`app/profil.jsx`, aussi atteint depuis *Compte > Mes informations > Modifier*).
+
 ## Permissions et comptes de l'équipe
 
 L'application est l'**espace client**. Les permissions sont celles de la Phase 6 (base) :

@@ -73,6 +73,7 @@ function Aiguillage() {
       <Stack.Screen name="facture/[id]" />
       <Stack.Screen name="suivi" />
       <Stack.Screen name="agences" />
+      <Stack.Screen name="profil" />
       <Stack.Screen name="paiement" />
       <Stack.Screen name="scanner" options={{ presentation: 'modal' }} />
     </Stack>

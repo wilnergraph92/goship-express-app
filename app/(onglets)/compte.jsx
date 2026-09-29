@@ -126,6 +126,10 @@ export default function Compte() {
             <View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 4 }}>
               {[profil?.nom_complet, profil?.email, profil?.telephone, [profil?.adresse, profil?.ville, profil?.pays].filter(Boolean).join(', ')]
                 .filter(Boolean).map((l, i) => <Texte key={i} doux taille={13.5}>{l}</Texte>)}
+              <Pressable onPress={() => router.push('/profil')} accessibilityRole="button" testID="compte-modifier"
+                style={{ alignSelf: 'flex-start', paddingVertical: 8 }}>
+                <Texte gras taille={13.5} style={{ color: couleurs.accent }}>{t('cp.modifier')}</Texte>
+              </Pressable>
             </View>
           ) : null}
           <Ligne icone="bell" titre={t('cp.notifications')} valeur={t('cp.notif.' + notif)} onPress={notifications} id="compte-notifications" />
