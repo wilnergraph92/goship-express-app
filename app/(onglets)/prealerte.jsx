@@ -146,7 +146,8 @@ export default function PreAlerte() {
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: -4 }}>
           {MAGASINS.map((m) => (
-            <Pressable key={m} onPress={() => poser('magasin')(m)} accessibilityRole="button" style={styles.suggestion}>
+            <Pressable key={m} onPress={() => poser('magasin')(m)} accessibilityRole="button" style={styles.suggestion}
+              testID={'pa-suggestion-' + m}>
               <Texte gras taille={12.5} doux>{m}</Texte>
             </Pressable>
           ))}
