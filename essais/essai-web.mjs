@@ -427,22 +427,41 @@ async function main() {
   await id('in-creer').click();
   verifier('nouveau compte : accueil avec son code GSE', await visible('accueil-code', 15000) && /^GSE-\d{4,}$/.test(await texte('accueil-code')), true);
   verifier('la base a créé le client', await sql("select count(*) from clients where email = 'rose@exemple.com';"), '1');
-  // Rose n'a donné ni téléphone ni ville (comme un compte ouvert avec Google) : l'accueil le lui demande
+  // Rose n'a donné ni téléphone ni ville (comme un compte ouvert avec Google) :
+  // « Mes informations » s'ouvre de lui-même
+  verifier('profil incomplet : « Mes informations » s\'ouvre de lui-même, avec le nom',
+    [await visible('pf-enregistrer', 10000), await id('pf-nom').inputValue()], [true, 'Rose Nouvelle']);
+  // Refermé sans rien remplir : la carte de l'accueil, et la base refuse les pré-alertes
+  await id('retour').last().click();
   await onglet('index');   // l'onglet Compte de la session d'avant peut rester au premier plan
-  verifier('profil incomplet : l\'accueil propose « Complétez votre profil »', await visible('accueil-completer', 8000), true);
-  await id('accueil-completer').click();
+  verifier('refermé : l\'accueil propose « Complétez votre profil »', await visible('accueil-completer', 8000), true);
+  await onglet('prealerte');
+  verifier('pré-alerte : la carte « Complétez votre profil » en tête', await visible('pa-completer', 8000), true);
+  await id('pa-magasin').fill('Amazon');
+  await id('pa-contenu').fill('Chaussures');
+  await id('pa-envoyer').click();
+  verifier('envoyée quand même : la base la refuse, avec la phrase, et mène au profil',
+    [await visible('pa-message-erreur', 10000) && (await texte('pa-message-erreur')).startsWith('Complétez votre profil'),
+     await visible('pa-completer-profil', 2000),
+     await sql("select count(*) from prealertes p join clients c on c.id = p.client_id where c.email = 'rose@exemple.com';")],
+    [true, true, '0']);
+  await id('pa-completer-profil').click();
   await visible('pf-enregistrer');
-  verifier('« Mes informations » reprend le nom', await id('pf-nom').inputValue(), 'Rose Nouvelle');
   await id('pf-enregistrer').click();
   verifier('téléphone et ville obligatoires', [await visible('pf-telephone-erreur', 3000), await visible('pf-ville-erreur', 1000)], [true, true]);
   await id('pf-telephone').fill('+509 3712 0000');
   await id('pf-pays-DO').click();
   await id('pf-ville').fill('Santiago');
   await id('pf-enregistrer').click();
-  await visible('accueil-code', 10000);
+  await visible('pa-envoyer', 10000);
   verifier('enregistré dans la base', await sql("select concat_ws('|', nom_complet, telephone, pays, ville) from clients where email = 'rose@exemple.com';"),
     'Rose Nouvelle|+509 3712 0000|DO|Santiago');
-  verifier('profil complet : la carte disparaît', await visible('accueil-completer', 2500), false);
+  verifier('profil complet : la carte de la pré-alerte disparaît', await visible('pa-completer', 2500), false);
+  await id('pa-envoyer').click();
+  verifier('la même pré-alerte passe maintenant', [await visible('pa-message-ok', 10000),
+    await sql("select count(*) from prealertes p join clients c on c.id = p.client_id where c.email = 'rose@exemple.com';")], [true, '1']);
+  await onglet('index');
+  verifier('profil complet : la carte de l\'accueil disparaît', await visible('accueil-completer', 2500), false);
   await onglet('compte');
   await id('compte-notifications').waitFor();
   verifier('notifications : état réel (indisponibles dans un navigateur)', (await texte('compte-notifications')).includes('Indisponibles sur cet appareil'), true);

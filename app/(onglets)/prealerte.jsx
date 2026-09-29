@@ -25,6 +25,7 @@ import { useDonnees } from '../../lib/useDonnees';
 import { creerPrealerte, mesPrealertes, supprimerPrealerte, nouvelleCle } from '../../lib/api';
 import { classer, messageErreur } from '../../lib/erreurs';
 import { verifierPrealerte } from '../../lib/validation';
+import { profilIncomplet } from '../../lib/connexion-sociale';
 import { dateCourte, montant } from '../../lib/format';
 
 const MAGASINS = ['Amazon', 'SHEIN', 'Walmart', 'eBay', 'Temu', 'AliExpress'];
@@ -32,7 +33,8 @@ const VIDE = { magasin: '', description: '', suivi: '', valeur: '', service: 'ae
 
 export default function PreAlerte() {
   const { t, langue } = useLangue();
-  const { verifierSession } = useSession();
+  const { verifierSession, profil, equipe } = useSession();
+  const aCompleter = !equipe && profilIncomplet(profil);
   const marges = useSafeAreaInsets();
   const params = useLocalSearchParams();
 
@@ -102,7 +104,8 @@ export default function PreAlerte() {
       } else if (c.code === 'INVALID_VALUE') setErreurs({ valeur: messageErreur(e, t) });
       // La clé reste : « Réessayer » renverra le MÊME envoi (si le premier est arrivé
       // malgré le délai dépassé, la base le rendra au lieu d'en créer un second)
-      setMessage({ type: 'erreur', texte: messageErreur(e, t), reessai: ['reseau', 'delai', 'serveur'].indexOf(c.type) >= 0 });
+      setMessage({ type: 'erreur', texte: messageErreur(e, t), reessai: ['reseau', 'delai', 'serveur'].indexOf(c.type) >= 0,
+                   profil: c.code === 'PROFILE_INCOMPLETE' });
     } finally {
       envoiEnCours.current = false;
       setOccupe(false);
@@ -141,6 +144,17 @@ export default function PreAlerte() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 36, gap: 13 }} keyboardShouldPersistTaps="handled">
+        {aCompleter ? (
+          <Pressable onPress={() => router.push('/profil')} style={[styles.carte, styles.completer]}
+            accessibilityRole="button" testID="pa-completer">
+            <Feather name="user-check" size={20} color={couleurs.accent} />
+            <View style={{ flex: 1 }}>
+              <Texte gras taille={14}>{t('pf.completer_titre')}</Texte>
+              <Texte doux taille={12.5} style={{ marginTop: 3, lineHeight: 18 }}>{t('err.PROFILE_INCOMPLETE')}</Texte>
+            </View>
+            <Feather name="chevron-right" size={18} color={couleurs.texteDoux} />
+          </Pressable>
+        ) : null}
         <Champ etiquette={t('pa.magasin')} value={champs.magasin} onChangeText={poser('magasin')} placeholder="Amazon"
           erreur={erreurs.magasin} maxLength={80} testID="pa-magasin" />
 
@@ -214,6 +228,10 @@ export default function PreAlerte() {
               color={message.type === 'ok' ? couleurs.vert : couleurs.rouge} />
             <Texte taille={13.5} style={{ flex: 1, lineHeight: 19 }}>{message.texte}</Texte>
           </View>
+        ) : null}
+        {message && message.profil ? (
+          <Bouton titre={t('pf.completer_bouton')} icone="user-check" variante="secondaire"
+            onPress={() => router.push('/profil')} testID="pa-completer-profil" />
         ) : null}
 
         <Bouton titre={message && message.reessai ? t('gen.reessayer') : t('pa.envoyer')}
@@ -293,6 +311,7 @@ const styles = StyleSheet.create({
   messageOk: { backgroundColor: 'rgba(14,159,110,0.08)', borderColor: 'rgba(14,159,110,0.3)' },
   messageErreur: { backgroundColor: 'rgba(192,57,43,0.07)', borderColor: 'rgba(192,57,43,0.3)' },
   carte: { backgroundColor: couleurs.carte, borderRadius: 18, borderWidth: 1, borderColor: couleurs.bord, padding: 14 },
+  completer: { flexDirection: 'row', alignItems: 'center', gap: 12, borderColor: couleurs.accent },
   confirmer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 11, paddingTop: 11, borderTopWidth: 1, borderTopColor: '#f1f4fa' },
   petitBouton: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 11, minHeight: 40, justifyContent: 'center' },
 });
