@@ -19,6 +19,7 @@ import { useSession } from '../../lib/session';
 import { useDonnees } from '../../lib/useDonnees';
 import { mesColis, monResume, surveiller } from '../../lib/api';
 import { dateRelative, montant, libelleStatut } from '../../lib/format';
+import { profilIncomplet } from '../../lib/connexion-sociale';
 
 function adresseComplete(profil) {
   const a = config.adresseMiami;
@@ -136,6 +137,19 @@ export default function Accueil() {
             </View>
           </View>
         )}
+
+        {/* Compte ouvert avec Google : pays, ville ou téléphone manquent encore */}
+        {!equipe && profilIncomplet(profil) ? (
+          <Pressable onPress={() => router.push('/profil')} style={[styles.carteCompleter, ombres.carte]}
+            accessibilityRole="button" testID="accueil-completer">
+            <Feather name="user-check" size={20} color={couleurs.accent} />
+            <View style={{ flex: 1 }}>
+              <Texte gras taille={14}>{t('pf.completer_titre')}</Texte>
+              <Texte doux taille={12.5} style={{ marginTop: 3, lineHeight: 18 }}>{t('pf.completer_texte')}</Texte>
+            </View>
+            <Feather name="chevron-right" size={18} color={couleurs.texteDoux} />
+          </Pressable>
+        ) : null}
 
         {donnees ? <Bandeau erreur={erreur} onReessayer={recharger} /> : null}
 
@@ -301,6 +315,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: couleurs.bord,
     padding: 17,
+  },
+  carteCompleter: {
+    marginHorizontal: 18,
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    backgroundColor: couleurs.carte,
+    borderRadius: rayons.carte,
+    borderWidth: 1,
+    borderColor: couleurs.accent,
+    padding: 16,
   },
   stat: {
     flex: 1,

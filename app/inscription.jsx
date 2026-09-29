@@ -10,6 +10,7 @@ import { couleurs, rayons } from '../lib/theme';
 import { useLangue } from '../lib/i18n';
 import { useSession, MDP_MINIMUM, emailValide } from '../lib/session';
 import { classer } from '../lib/erreurs';
+import BoutonGoogle from '../components/BoutonGoogle';
 
 const PAYS = [
   { code: 'HT', cle: 'pays.HT' },
@@ -19,7 +20,7 @@ const PAYS = [
 
 export default function Inscription() {
   const { t, langue } = useLangue();
-  const { inscription } = useSession();
+  const { inscription, fournisseurs, connexionAvec } = useSession();
 
   const [champs, setChamps] = useState({
     nom_complet: '', email: '', motDePasse: '', telephone: '', pays: 'HT', ville: '',
@@ -27,6 +28,7 @@ export default function Inscription() {
   const [erreurs, setErreurs] = useState({});
   const [message, setMessage] = useState(null);
   const [occupe, setOccupe] = useState(false);
+  const [occupeGoogle, setOccupeGoogle] = useState(false);
 
   const poser = (cle) => (valeur) => {
     setChamps((c) => ({ ...c, [cle]: valeur }));
@@ -64,6 +66,26 @@ export default function Inscription() {
     }
   }
 
+  // S'inscrire avec Google : pas de mot de passe ; pays, ville et téléphone se complètent
+  // ensuite (l'accueil le propose tant qu'ils manquent).
+  async function google() {
+    if (occupeGoogle) return;
+    setOccupeGoogle(true);
+    setMessage(null);
+    try {
+      await connexionAvec('google');
+      router.replace('/(onglets)');
+    } catch (e) {
+      if (e && e.code === 'connexion-annulee') setMessage({ type: 'erreur', texte: t('cx.google_annule') });
+      else {
+        const c = classer(e);
+        setMessage({ type: 'erreur', texte: c.type === 'reseau' || c.type === 'delai' ? t('err.' + c.type) : t('cx.google_echec') });
+      }
+    } finally {
+      setOccupeGoogle(false);
+    }
+  }
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: couleurs.fond }}>
       <EnTete titre={t('in.titre')} retour>
@@ -71,6 +93,16 @@ export default function Inscription() {
       </EnTete>
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 40, gap: 14 }} keyboardShouldPersistTaps="handled">
+        {fournisseurs.indexOf('google') >= 0 ? (
+          <>
+            <BoutonGoogle titre={t('cx.google')} onPress={google} occupe={occupeGoogle} testID="in-google" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: couleurs.bord }} />
+              <Texte doux taille={12}>{t('gen.ou')}</Texte>
+              <View style={{ flex: 1, height: 1, backgroundColor: couleurs.bord }} />
+            </View>
+          </>
+        ) : null}
         <Champ etiquette={t('in.nom')} value={champs.nom_complet} onChangeText={poser('nom_complet')} autoComplete="name"
           erreur={erreurs.nom_complet} maxLength={120} testID="in-nom" />
         <Champ etiquette={t('cx.email')} value={champs.email} onChangeText={poser('email')} autoCapitalize="none"

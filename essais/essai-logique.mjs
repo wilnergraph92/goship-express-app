@@ -200,5 +200,36 @@ console.log('G. Mise en forme (lib/format.js)');
   verifier('une date chiffrée reste telle quelle', F.dateRelative('2026-01-05T15:00:00Z', 'fr', true).slice(0, 10), '05/01/2026');
 }
 
+console.log('H. Continuer avec Google (lib/connexion-sociale.js)');
+{
+  const S = await module_('lib/connexion-sociale.js');
+  const reglages = (corps, ok = true) => async (url, opts) => ({ ok, url, opts, json: async () => corps });
+  let vu = null;
+  const espion = async (url, opts) => { vu = [url, opts.headers.apikey]; return { ok: true, json: async () => ({ external: { google: true } }) }; };
+  verifier('réglages publics de Supabase lus avec la clé publique', [await S.fournisseursActifs('https://x.supabase.co/', 'cle', espion), vu],
+    [['google'], ['https://x.supabase.co/auth/v1/settings', 'cle']]);
+  verifier('Google désactivé dans Supabase : aucun bouton', await S.fournisseursActifs('u', 'k', reglages({ external: { google: false, email: true } })), []);
+  verifier('un fournisseur que l\'application ne connaît pas : ignoré', await S.fournisseursActifs('u', 'k', reglages({ external: { github: true } })), []);
+  verifier('réponse en erreur ou réseau coupé : aucun bouton',
+    [await S.fournisseursActifs('u', 'k', reglages({}, false)), await S.fournisseursActifs('u', 'k', async () => { throw new TypeError('Network request failed'); })],
+    [[], []]);
+  verifier('retour avec des jetons (après #)', S.issueRetour(S.lireRetour('goshipexpress://connexion#access_token=a.b.c&refresh_token=r1&expires_in=3600&token_type=bearer')),
+    { jetons: { access_token: 'a.b.c', refresh_token: 'r1' } });
+  verifier('retour avec un code (après ?)', S.issueRetour(S.lireRetour('goshipexpress://connexion?code=1234-abcd')), { code: '1234-abcd' });
+  verifier('refus du client chez Google : « annulée »',
+    S.issueRetour(S.lireRetour('goshipexpress://connexion?error=access_denied&error_description=The+user+denied')), { erreur: 'connexion-annulee' });
+  verifier('autre erreur (dans le #) : « échec », texte décodé',
+    [S.issueRetour(S.lireRetour('exp://192.168.1.2:8081/--/connexion#error=server_error&error_description=Database%20error')),
+     S.lireRetour('x://y#error_description=Database%20error+saving').error_description],
+    [{ erreur: 'connexion-echec' }, 'Database error saving']);
+  verifier('retour sans rien d\'utile : « échec »', [S.issueRetour(S.lireRetour('goshipexpress://connexion')),
+    S.issueRetour(S.lireRetour('goshipexpress://connexion#access_token=seul'))], [{ erreur: 'connexion-echec' }, { erreur: 'connexion-echec' }]);
+  verifier('profil à compléter : pays, ville ou téléphone manquant',
+    [{ nom_complet: 'Rose', pays: '', ville: '', telephone: '' }, { nom_complet: 'Rose', pays: 'HT', ville: 'Jacmel', telephone: ' ' },
+     { nom_complet: 'Rose', pays: 'HT', ville: 'Jacmel', telephone: '+509' }, null].map(S.profilIncomplet), [true, true, false, false]);
+  verifier('la session le propose, les deux écrans ont leur bouton', [lire('lib/session.js').includes('connexionAvec('),
+    lire('app/connexion.jsx').includes('testID="connexion-google"'), lire('app/inscription.jsx').includes('testID="in-google"')], [true, true, true]);
+}
+
 console.log(`${resultats.length} vérifications, ${resultats.filter(Boolean).length} réussies.`);
 process.exit(resultats.every(Boolean) ? 0 : 1);

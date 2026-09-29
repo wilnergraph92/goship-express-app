@@ -97,6 +97,7 @@ async function main() {
   await capture('01-connexion');
   await id('connexion-entrer').click();
   verifier('champs vides : message, sans requête', [await visible('connexion-erreur', 3000), requetes.length], [true, 0]);
+  verifier('version navigateur : pas de bouton Google (il passe par le navigateur du téléphone)', await id('connexion-google').count(), 0);
   await seConnecter('marie@exemple.com', 'mauvais');
   await visible('connexion-erreur');
   verifier('mauvais mot de passe : message clair', await texte('connexion-erreur'), 'E-mail ou mot de passe incorrect.');
@@ -426,6 +427,22 @@ async function main() {
   await id('in-creer').click();
   verifier('nouveau compte : accueil avec son code GSE', await visible('accueil-code', 15000) && /^GSE-\d{4,}$/.test(await texte('accueil-code')), true);
   verifier('la base a créé le client', await sql("select count(*) from clients where email = 'rose@exemple.com';"), '1');
+  // Rose n'a donné ni téléphone ni ville (comme un compte ouvert avec Google) : l'accueil le lui demande
+  await onglet('index');   // l'onglet Compte de la session d'avant peut rester au premier plan
+  verifier('profil incomplet : l\'accueil propose « Complétez votre profil »', await visible('accueil-completer', 8000), true);
+  await id('accueil-completer').click();
+  await visible('pf-enregistrer');
+  verifier('« Mes informations » reprend le nom', await id('pf-nom').inputValue(), 'Rose Nouvelle');
+  await id('pf-enregistrer').click();
+  verifier('téléphone et ville obligatoires', [await visible('pf-telephone-erreur', 3000), await visible('pf-ville-erreur', 1000)], [true, true]);
+  await id('pf-telephone').fill('+509 3712 0000');
+  await id('pf-pays-DO').click();
+  await id('pf-ville').fill('Santiago');
+  await id('pf-enregistrer').click();
+  await visible('accueil-code', 10000);
+  verifier('enregistré dans la base', await sql("select concat_ws('|', nom_complet, telephone, pays, ville) from clients where email = 'rose@exemple.com';"),
+    'Rose Nouvelle|+509 3712 0000|DO|Santiago');
+  verifier('profil complet : la carte disparaît', await visible('accueil-completer', 2500), false);
   await onglet('compte');
   await id('compte-notifications').waitFor();
   verifier('notifications : état réel (indisponibles dans un navigateur)', (await texte('compte-notifications')).includes('Indisponibles sur cet appareil'), true);

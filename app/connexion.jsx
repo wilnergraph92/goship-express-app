@@ -10,6 +10,7 @@ import { Titre, Texte, Bouton, Champ } from '../components/ui';
 import { useLangue } from '../lib/i18n';
 import { useSession, prendreAvisConnexion } from '../lib/session';
 import { classer } from '../lib/erreurs';
+import BoutonGoogle from '../components/BoutonGoogle';
 
 // Ce que l'écran dit d'un refus de connexion
 function raison(e, t) {
@@ -22,13 +23,14 @@ function raison(e, t) {
 
 export default function Connexion() {
   const { t } = useLangue();
-  const { connexion, motDePasseOublie, sessionExpiree } = useSession();
+  const { connexion, motDePasseOublie, sessionExpiree, fournisseurs, connexionAvec } = useSession();
   const marges = useSafeAreaInsets();
 
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [visible, setVisible] = useState(false);
   const [occupe, setOccupe] = useState(false);
+  const [occupeGoogle, setOccupeGoogle] = useState(false);
   // Un avis laissé par l'écran précédent (compte supprimé), lu une seule fois
   const [message, setMessage] = useState(() => {
     const cle = prendreAvisConnexion();
@@ -47,6 +49,26 @@ export default function Connexion() {
       setMessage({ type: 'erreur', texte: raison(e, t) });
     } finally {
       setOccupe(false);
+    }
+  }
+
+  // Continuer avec Google : un compte existant s'y retrouve (même adresse e-mail), un
+  // nouveau client a son compte et son code tout de suite.
+  async function google() {
+    if (occupeGoogle) return;
+    setOccupeGoogle(true);
+    setMessage(null);
+    try {
+      await connexionAvec('google');
+      router.replace('/(onglets)');
+    } catch (e) {
+      if (e && e.code === 'connexion-annulee') setMessage({ type: 'info', texte: t('cx.google_annule') });
+      else {
+        const c = classer(e);
+        setMessage({ type: 'erreur', texte: c.type === 'reseau' || c.type === 'delai' ? t('err.' + c.type) : t('cx.google_echec') });
+      }
+    } finally {
+      setOccupeGoogle(false);
     }
   }
 
@@ -96,6 +118,17 @@ export default function Connexion() {
                 color={avis.type === 'ok' ? couleurs.vert : avis.type === 'info' ? '#8a4b00' : couleurs.rouge} />
               <Texte taille={13.5} style={{ flex: 1, lineHeight: 19 }}>{avis.texte}</Texte>
             </View>
+          ) : null}
+
+          {fournisseurs.indexOf('google') >= 0 ? (
+            <>
+              <BoutonGoogle titre={t('cx.google')} onPress={google} occupe={occupeGoogle} testID="connexion-google" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: couleurs.bord }} />
+                <Texte doux taille={12}>{t('gen.ou')}</Texte>
+                <View style={{ flex: 1, height: 1, backgroundColor: couleurs.bord }} />
+              </View>
+            </>
           ) : null}
 
           <Champ

@@ -1,0 +1,26 @@
+# Sur iOS, la question « Ouvrir dans “GoShip Express” ? » d'un lien goshipexpress:// peut
+# arriver en retard, après que le parcours des liens a continué, et rester par-dessus
+# l'application relancée par le parcours suivant : aucun écran de l'application n'est
+# alors visible. On la ferme par « Annuler » (aucun lien ne doit s'ouvrir ici). Sans
+# question, ou sur Android, rien ne se passe.
+appId: com.goshipexpress.app
+name: Fermer une question d'iOS restée ouverte
+---
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - runFlow:
+          when:
+            visible: "Cancel"
+          commands:
+            - tapOn: "Cancel"
+- runFlow:
+    when:
+      visible: "Ouvrir"
+    commands:
+      - runFlow:
+          when:
+            visible: "Annuler"
+          commands:
+            - tapOn: "Annuler"
