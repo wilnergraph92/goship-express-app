@@ -104,38 +104,38 @@ name: Parcours client
 - openLink: goshipexpress://colis/${COLIS_MARIE}
 - runFlow:
     file: commun/ouvrir-lien-ios.yaml
-- extendedWaitUntil:
-    visible:
-      id: detail-numero
-    timeout: 20000
+- runFlow:
+    file: commun/attendre-lien.yaml
+    env:
+      ATTENDU: detail-numero
 - assertVisible:
     id: detail-numero
     text: GSE-1002-HT
 - openLink: goshipexpress://colis/${COLIS_JEAN}
 - runFlow:
     file: commun/ouvrir-lien-ios.yaml
-- extendedWaitUntil:
-    visible:
-      id: etat-introuvable
-    timeout: 20000
+- runFlow:
+    file: commun/attendre-lien.yaml
+    env:
+      ATTENDU: etat-introuvable
 - assertNotVisible: Colis de Jean 1
 - openLink: goshipexpress://suivi?numero=GSE-1026-HT
 - runFlow:
     file: commun/ouvrir-lien-ios.yaml
-- extendedWaitUntil:
-    visible:
-      id: suivi-public
-    timeout: 20000
+- runFlow:
+    file: commun/attendre-lien.yaml
+    env:
+      ATTENDU: suivi-public
 - assertNotVisible: Colis de Jean 1
 
 # Pré-alerte : confirmée seulement par la base
 - openLink: goshipexpress://prealerte
 - runFlow:
     file: commun/ouvrir-lien-ios.yaml
-- extendedWaitUntil:
-    visible:
-      id: pa-magasin
-    timeout: 20000
+- runFlow:
+    file: commun/attendre-lien.yaml
+    env:
+      ATTENDU: pa-magasin
 # Le magasin par sa suggestion : sur le simulateur iOS, une frappe envoyée juste après
 # l'ouverture de l'écran se perd parfois (champ resté vide, « Indiquez le magasin »).
 # La frappe reste éprouvée par le contenu, juste après.

@@ -1,0 +1,24 @@
+# Après un lien goshipexpress:// : l'écran attendu (env ATTENDU) doit venir. Sur le
+# simulateur iOS, il arrive parfois en retard — la question « Ouvrir dans “GoShip
+# Express” ? » venue après le premier coup d'œil de ouvrir-lien-ios.yaml, ou une
+# première requête lente. Seulement dans ce cas, on accepte la question si elle est
+# là, et on attend plus longtemps : l'écran doit toujours finir par venir.
+appId: com.goshipexpress.app
+name: Attendre l'écran du lien
+---
+- extendedWaitUntil:
+    visible:
+      id: ${ATTENDU}
+    timeout: 20000
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: ${ATTENDU}
+    commands:
+      - runFlow:
+          file: ouvrir-lien-ios.yaml
+      - extendedWaitUntil:
+          visible:
+            id: ${ATTENDU}
+          timeout: 60000
