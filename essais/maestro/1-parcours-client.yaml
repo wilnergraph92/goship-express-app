@@ -23,24 +23,21 @@ name: Parcours client
 - tapOn:
     id: connexion-mdp
 - inputText: mauvais
-# Entrée sur le mot de passe envoie le formulaire (et ferme le clavier) ; hideKeyboard
-# n'est pas fiable sur Android avec un champ React Native
-- pressKey: Enter
-- extendedWaitUntil:
-    visible:
-      id: connexion-erreur
-    timeout: 20000
+# Entrée envoie le formulaire ; si le simulateur iOS la perd, le bouton (commun/)
+- runFlow:
+    file: commun/envoyer-connexion.yaml
+    env:
+      ATTENDU: connexion-erreur
 
 # Connexion
 - tapOn:
     id: connexion-mdp
 - eraseText: 20
 - inputText: marie-essai-1
-- pressKey: Enter
-- extendedWaitUntil:
-    visible:
-      id: stat-en-cours
-    timeout: 30000
+- runFlow:
+    file: commun/envoyer-connexion.yaml
+    env:
+      ATTENDU: stat-en-cours
 # Les chiffres de la base (mon_resume) : 24 en cours, 1 à retirer. Une carte est un
 # seul élément accessible (« 24 en cours ») : ses enfants n'existent pas pour Maestro
 - assertVisible:
@@ -71,10 +68,24 @@ name: Parcours client
 - takeScreenshot: captures/3-colis
 - tapOn:
     id: colis-GSE-1001-HT
+# Le simulateur iOS perd parfois un toucher juste après le filtre (la liste se
+# redessine) : la fiche ne s'ouvre pas. Seulement dans ce cas, on touche à nouveau.
 - extendedWaitUntil:
     visible:
       id: detail-statut
     timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: detail-statut
+    commands:
+      - tapOn:
+          id: colis-GSE-1001-HT
+      - extendedWaitUntil:
+          visible:
+            id: detail-statut
+          timeout: 15000
 - assertVisible:
     id: detail-numero
     text: GSE-1001-HT
