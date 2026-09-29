@@ -147,7 +147,8 @@ reçus (`lib/session.js`, `connexionAvec`). Le bouton n'apparaît que si Supabas
 Google (réglages publics `/auth/v1/settings`, `lib/connexion-sociale.js`), et jamais dans
 la version navigateur (elle ne sert qu'aux essais). Réglages à faire une fois : guide
 « Continuer avec Google » du README du site (client OAuth Google, fournisseur dans
-Supabase, `goshipexpress://**` dans *Authentication > URL Configuration > Redirect URLs*,
+Supabase, `goshipexpress://**`, `goshipexpress://connexion` et `goshipexpress:///connexion` dans
+*Authentication > URL Configuration > Redirect URLs* — sans elles, Google renvoie sur le site,
 migration `outils/supabase-connexion.sql`). Un compte Google n'a ni pays, ni ville, ni
 téléphone : *Mes informations* (`app/profil.jsx`) s'ouvre de lui-même, une fois par
 compte et par lancement ; refermé, l'accueil et la pré-alerte gardent la carte « Complétez
