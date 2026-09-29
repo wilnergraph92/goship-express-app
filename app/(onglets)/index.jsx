@@ -32,6 +32,12 @@ function adresseComplete(profil) {
   ].filter(Boolean).join('\n');
 }
 
+// Profil incomplet (compte ouvert avec Google, le plus souvent) : « Mes informations »
+// s'ouvre de lui-même, une fois par compte et par lancement de l'application. Refermé,
+// il reste la carte de l'accueil ; et la base refuse les pré-alertes tant qu'il manque
+// quelque chose.
+const profilsProposes = new Set();
+
 const STATUTS_CONNUS = ['recu', 'emballe', 'embarque', 'distribution', 'succursale', 'disponible', 'livre', 'incident'];
 
 export default function Accueil() {
@@ -53,6 +59,11 @@ export default function Accueil() {
     recharger();
   }, [recharger]));
   useEffect(() => surveiller(profil?.id, recharger), [profil?.id, recharger]);
+  useEffect(() => {
+    if (!profil?.id || profilsProposes.has(profil.id) || equipe || !profilIncomplet(profil)) return;
+    profilsProposes.add(profil.id);
+    router.push('/profil');
+  }, [profil, equipe]);
 
   const resume = donnees?.resume;
   const c = resume?.colis || {};

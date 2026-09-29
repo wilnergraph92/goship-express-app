@@ -149,8 +149,12 @@ la version navigateur (elle ne sert qu'aux essais). Réglages à faire une fois 
 « Continuer avec Google » du README du site (client OAuth Google, fournisseur dans
 Supabase, `goshipexpress://**` dans *Authentication > URL Configuration > Redirect URLs*,
 migration `outils/supabase-connexion.sql`). Un compte Google n'a ni pays, ni ville, ni
-téléphone : l'accueil propose « Complétez votre profil », qui ouvre *Mes informations*
-(`app/profil.jsx`, aussi atteint depuis *Compte > Mes informations > Modifier*).
+téléphone : *Mes informations* (`app/profil.jsx`) s'ouvre de lui-même, une fois par
+compte et par lancement ; refermé, l'accueil et la pré-alerte gardent la carte « Complétez
+votre profil ». La base refuse toute nouvelle pré-alerte tant que le nom, le téléphone, le
+pays ou la ville manquent (`PROFILE_INCOMPLETE`, migration `outils/supabase-profil-complet.sql`
+du site) : l'écran le dit et mène au profil. *Mes informations* s'atteint aussi depuis
+*Compte > Mes informations > Modifier*.
 
 ## Permissions et comptes de l'équipe
 
