@@ -425,15 +425,15 @@ async function main() {
   verifier('adresse déjà inscrite : message', await visible('in-email-erreur', 8000) && (await texte('in-email-erreur')).startsWith('Un compte existe déjà'), true);
   await id('in-email').fill('rose@exemple.com');
   await id('in-creer').click();
-  verifier('nouveau compte : accueil avec son code GSE', await visible('accueil-code', 15000) && /^GSE-\d{4,}$/.test(await texte('accueil-code')), true);
-  verifier('la base a créé le client', await sql("select count(*) from clients where email = 'rose@exemple.com';"), '1');
   // Rose n'a donné ni téléphone ni ville (comme un compte ouvert avec Google) :
-  // « Mes informations » s'ouvre de lui-même
+  // « Mes informations » s'ouvre de lui-même, par-dessus l'accueil
   verifier('profil incomplet : « Mes informations » s\'ouvre de lui-même, avec le nom',
-    [await visible('pf-enregistrer', 10000), await id('pf-nom').inputValue()], [true, 'Rose Nouvelle']);
-  // Refermé sans rien remplir : la carte de l'accueil, et la base refuse les pré-alertes
+    [await visible('pf-enregistrer', 15000), await id('pf-nom').inputValue()], [true, 'Rose Nouvelle']);
+  verifier('la base a créé le client', await sql("select count(*) from clients where email = 'rose@exemple.com';"), '1');
+  // Refermé sans rien remplir : l'accueil, son code, la carte ; et la base refuse les pré-alertes
   await id('retour').last().click();
   await onglet('index');   // l'onglet Compte de la session d'avant peut rester au premier plan
+  verifier('nouveau compte : accueil avec son code GSE', await visible('accueil-code', 15000) && /^GSE-\d{4,}$/.test(await texte('accueil-code')), true);
   verifier('refermé : l\'accueil propose « Complétez votre profil »', await visible('accueil-completer', 8000), true);
   await onglet('prealerte');
   verifier('pré-alerte : la carte « Complétez votre profil » en tête', await visible('pa-completer', 8000), true);
