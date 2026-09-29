@@ -125,9 +125,11 @@ name: Parcours client
     visible:
       id: pa-magasin
     timeout: 20000
+# Le magasin par sa suggestion : sur le simulateur iOS, une frappe envoyée juste après
+# l'ouverture de l'écran se perd parfois (champ resté vide, « Indiquez le magasin »).
+# La frappe reste éprouvée par le contenu, juste après.
 - tapOn:
-    id: pa-magasin
-- inputText: Amazon
+    id: pa-suggestion-Amazon
 - tapOn:
     id: pa-contenu
 - inputText: Casque natif
