@@ -9,10 +9,19 @@ name: Permissions
     clearState: true
     permissions:
       all: deny
+- runFlow:
+    file: commun/fermer-question-ios.yaml
 - extendedWaitUntil:
     visible:
       id: connexion-email
     timeout: 90000
+    optional: true
+- runFlow:
+    file: commun/fermer-question-ios.yaml
+- extendedWaitUntil:
+    visible:
+      id: connexion-email
+    timeout: 30000
 - tapOn:
     id: connexion-email
 - inputText: marie@exemple.com
@@ -52,6 +61,8 @@ name: Permissions
 - launchApp:
     permissions:
       camera: allow
+- runFlow:
+    file: commun/fermer-question-ios.yaml
 - extendedWaitUntil:
     visible:
       id: onglet-colis

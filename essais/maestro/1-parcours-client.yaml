@@ -195,6 +195,8 @@ name: Parcours client
     timeout: 20000
 - stopApp
 - launchApp
+- runFlow:
+    file: commun/fermer-question-ios.yaml
 - extendedWaitUntil:
     visible:
       id: connexion-email
