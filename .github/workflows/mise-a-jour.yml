@@ -1,0 +1,99 @@
+# ==========================================================================
+#  Mise à jour de l'application installée (EAS Update)
+# ==========================================================================
+#  À chaque changement fusionné dans main, publie le nouveau code de
+#  l'application (JavaScript, textes, images) sur les serveurs d'Expo. Les
+#  téléphones qui ont une construction « preview » (l'APK installé depuis
+#  expo.dev) la téléchargent à l'ouverture de l'application et l'appliquent à
+#  l'ouverture suivante : plus besoin de reconstruire pour un écran, un texte,
+#  une couleur ou une correction.
+#
+#  Ce qui demande toujours une nouvelle construction (et, avant elle, la version
+#  de l'application augmentée dans app.json, par ex. 1.0.0 → 1.0.1) : un module
+#  natif ajouté, une permission, l'icône, l'écran de démarrage, une version
+#  d'Expo. La version fait office de « runtimeVersion » (app.json, politique
+#  appVersion) : une mise à jour ne va qu'aux constructions de la même version,
+#  si bien qu'un code qui aurait besoin d'un module absent n'atteint jamais un
+#  téléphone qui ne l'a pas.
+#
+#  Canal : preview seulement (l'APK d'essai). Les versions des boutiques
+#  (canal production) ne reçoivent rien d'ici : ce sera une décision à part.
+#
+#  Il faut, une fois : le secret EXPO_TOKEN du dépôt (le même que pour
+#  .github/workflows/eas.yml : expo.dev > Account settings > Access tokens,
+#  puis Settings > Secrets and variables > Actions). Personne n'a à le voir :
+#  ni le journal ni le résumé ne l'écrivent.
+# ==========================================================================
+
+name: Mise à jour de l'application
+
+on:
+  push:
+    branches: [main]
+    # Ce qui ne change rien dans l'application ne publie rien
+    paths-ignore:
+      - '**.md'
+      - 'essais/**'
+      - '.github/**'
+      - '.maestro/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deux fusions coup sur coup publient dans l'ordre, sans en jeter aucune
+concurrency:
+  group: mise-a-jour
+  cancel-in-progress: false
+
+env:
+  EXPO_NO_TELEMETRY: 1
+  CI: 1
+  # La vraie base, comme les constructions preview et production (eas.json) :
+  # une mise à jour n'hérite pas du « env » d'eas.json, elle le reçoit d'ici
+  EXPO_PUBLIC_GOSHIP_ENV: production
+
+jobs:
+  publier:
+    name: Publier (canal preview)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Jeton Expo présent ?
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Le secret EXPO_TOKEN n'est pas posé (Settings > Secrets and variables > Actions) : aucune mise à jour n'a été publiée. Voir l'en-tête de .github/workflows/mise-a-jour.yml."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # Le message de la mise à jour est celui du commit (la phrase de la PR fusionnée)
+      - name: Publier
+        run: |
+          MESSAGE=$(git log -1 --pretty=%s)
+          eas update --channel preview --environment preview --platform all \
+            --message "$MESSAGE" --non-interactive --json > mise-a-jour.json
+          {
+            echo "### Mise à jour publiée — canal preview"
+            echo
+            echo "$MESSAGE"
+            echo
+            echo "| Plateforme | Version (runtime) | Groupe |"
+            echo "|---|---|---|"
+            jq -r '.[] | "| \(.platform) | \(.runtimeVersion) | \(.group) |"' mise-a-jour.json
+            echo
+            echo "Sur le téléphone : fermer complètement l'application, la rouvrir, puis la fermer et la rouvrir encore une fois."
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Rien de publié (réponse vide) : le workflow devient rouge
+          jq -e 'length > 0' mise-a-jour.json > /dev/null

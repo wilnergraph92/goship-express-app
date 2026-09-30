@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { Feather } from '@expo/vector-icons';
 import config from '../../config';
 import { couleurs, rayons, ombres, polices } from '../../lib/theme';
@@ -21,6 +22,16 @@ function version() {
   const e = Constants.expoConfig || {};
   const build = (e.ios && e.ios.buildNumber) || (e.android && e.android.versionCode);
   return (e.version || '') + (build ? ` (${build})` : '');
+}
+
+// « 30/09 17:40 » : la date de la mise à jour reçue (EAS Update) que le téléphone
+// fait tourner, pour savoir d'un coup d'œil si la dernière est arrivée. Rien quand
+// l'application tourne sur le code de sa construction (ou dans un navigateur).
+function dateMiseAJour() {
+  if (Updates.isEmbeddedLaunch || !Updates.createdAt) return '';
+  const d = new Date(Updates.createdAt);
+  const deux = (n) => String(n).padStart(2, '0');
+  return `${deux(d.getDate())}/${deux(d.getMonth() + 1)} ${deux(d.getHours())}:${deux(d.getMinutes())}`;
 }
 
 export default function Compte() {
@@ -209,7 +220,7 @@ export default function Compte() {
         )}
 
         <Texte doux taille={11.5} style={{ textAlign: 'center', marginTop: 14 }} testID="compte-version">
-          GoShip Express · {t('cp.version')} {version()}{config.environnement !== 'production' ? ` · ${config.environnement}` : ''}
+          GoShip Express · {t('cp.version')} {version()}{dateMiseAJour() ? ` · ${t('cp.mise_a_jour')} ${dateMiseAJour()}` : ''}{config.environnement !== 'production' ? ` · ${config.environnement}` : ''}
         </Texte>
       </ScrollView>
     </View>
