@@ -123,6 +123,9 @@ async function main() {
       await page.getByText('Solde à payer').count(), await page.getByText('Derniers messages').count()], [0, 0, 0, 0]);
   verifier('accueil : les deux derniers colis, sans « Mis à jour »',
     [await page.locator('[data-testid^="colis-GSE-"]').count(), await page.getByText(/^Mis à jour/).count()], [2, 0]);
+  // La carte d'un colis garde son fond blanc et sa marge (un <Link asChild> les perdait)
+  verifier('carte d\'un colis : fond blanc et marge intérieure', await page.locator('[data-testid^="colis-GSE-"]').first()
+    .evaluate((e) => [getComputedStyle(e).backgroundColor, getComputedStyle(e).paddingTop]), ['rgb(255, 255, 255)', '15px']);
   verifier('nom et code du client', [await texte('accueil-nom'), await texte('accueil-code')],
     [await sql(`select nom_complet from clients where id = '${MARIE}';`), await sql(`select code from clients where id = '${MARIE}';`)]);
   await capture('02-accueil');
