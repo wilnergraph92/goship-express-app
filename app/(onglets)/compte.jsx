@@ -1,4 +1,4 @@
-// Mon compte : code client, réglages, langue, notifications, aide et déconnexion.
+// Mon compte : code client, réglages, langue, notifications, aide, réseaux sociaux et déconnexion.
 
 import { useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Pressable, Linking, ActivityIndicator, StyleSheet } from 'react-native';
@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
-import { Feather } from '@expo/vector-icons';
+import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import config from '../../config';
 import { couleurs, rayons, ombres, polices } from '../../lib/theme';
 import { Titre, Texte, Mono, Etiquette } from '../../components/ui';
@@ -22,6 +22,14 @@ function version() {
   const build = (e.ios && e.ios.buildNumber) || (e.android && e.android.versionCode);
   return (e.version || '') + (build ? ` (${build})` : '');
 }
+
+// Les réseaux sociaux, dans l'ordre du bas de page du site. Les logos sont ceux de
+// Font Awesome (marques), fournis avec @expo/vector-icons : rien à installer.
+const RESEAUX = [
+  { cle: 'facebook', nom: 'Facebook' },
+  { cle: 'instagram', nom: 'Instagram' },
+  { cle: 'tiktok', nom: 'TikTok' },
+];
 
 export default function Compte() {
   const { t, langue, changerLangue } = useLangue();
@@ -208,6 +216,22 @@ export default function Compte() {
           </Pressable>
         )}
 
+        <Etiquette style={{ textAlign: 'center', marginTop: 24 }}>{t('cp.suivez_nous')}</Etiquette>
+        <View style={styles.reseaux}>
+          {RESEAUX.map((r) => (
+            <Pressable
+              key={r.cle}
+              onPress={() => Linking.openURL(config.reseaux[r.cle]).catch(() => {})}
+              accessibilityRole="link"
+              accessibilityLabel={r.nom}
+              style={({ pressed }) => [styles.reseau, ombres.carte, pressed && { opacity: 0.7 }]}
+              testID={'reseau-' + r.cle}
+            >
+              <FontAwesome5 name={r.cle} brand size={19} color={couleurs.texte} />
+            </Pressable>
+          ))}
+        </View>
+
         <Texte doux taille={11.5} style={{ textAlign: 'center', marginTop: 14 }} testID="compte-version">
           GoShip Express · {t('cp.version')} {version()}{config.environnement !== 'production' ? ` · ${config.environnement}` : ''}
         </Texte>
@@ -261,6 +285,17 @@ const styles = StyleSheet.create({
   liste: { backgroundColor: couleurs.carte, borderRadius: rayons.carte, borderWidth: 1, borderColor: couleurs.bord, overflow: 'hidden' },
   ligne: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 16, paddingVertical: 15, minHeight: 56 },
   ligneBord: { borderBottomWidth: 1, borderBottomColor: '#f1f4fa' },
+  reseaux: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginTop: 10 },
+  reseau: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: couleurs.carte,
+    borderWidth: 1,
+    borderColor: couleurs.bord,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   ligneRond: { width: 38, height: 38, borderRadius: 13, backgroundColor: '#f3f6fc', alignItems: 'center', justifyContent: 'center' },
   choix: {
     flexDirection: 'row',

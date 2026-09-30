@@ -42,6 +42,14 @@ export default {
   email: 'goshipexpressllc@gmail.com',
   horaires: 'Lun–Sam · 8h–18h',
 
+  // Pages de l'entreprise sur les réseaux sociaux (écran Compte, « Suivez-nous »),
+  // les mêmes que dans le bas de page du site. Adresses sans paramètres de partage.
+  reseaux: {
+    facebook: 'https://www.facebook.com/goshipexpress',
+    instagram: 'https://www.instagram.com/goshipexpressllc',
+    tiktok: 'https://www.tiktok.com/@goshipexpress.net',
+  },
+
   // Adresse de réception en Floride : la même pour tous les clients.
   // Le client écrit son code juste après son nom, c'est ce qui identifie ses colis.
   adresseMiami: {
