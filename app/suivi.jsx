@@ -7,7 +7,7 @@
 // Utilisé par l'accueil, le scanner et les liens goshipexpress://suivi?numero=…
 
 import { useEffect } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import EnTete from '../components/EnTete';
 import { couleurs, rayons, ombres, STATUTS } from '../lib/theme';
@@ -23,7 +23,7 @@ export default function Suivi() {
   const { t, langue } = useLangue();
   const reference = String(numero || '').trim().slice(0, 80);
 
-  const { donnees, erreur, recharger, chargement } = useDonnees(async () => {
+  const { donnees, erreur, recharger, rafraichit, tirer, chargement } = useDonnees(async () => {
     if (reference.length < 4) return { introuvable: true };
     const mien = await trouverMonColis(reference);
     if (mien) return { mien };
@@ -50,7 +50,9 @@ export default function Suivi() {
           <Vide icone="search" titre={reference || '—'} texte={t('su.introuvable')} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 18, gap: 14, paddingBottom: 40 }} testID="suivi-public">
+        <ScrollView
+          contentContainerStyle={{ padding: 18, gap: 14, paddingBottom: 40 }} testID="suivi-public"
+          refreshControl={<RefreshControl refreshing={rafraichit} onRefresh={tirer} tintColor={couleurs.accent} />}>
           <View style={[styles.carte, ombres.carte]}>
             <Mono taille={14}>{p.numero}</Mono>
             <Titre taille={20} style={{ marginTop: 8, color: s.couleur }}>{libelleStatut(p.statut, langue)}</Titre>

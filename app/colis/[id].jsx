@@ -4,9 +4,13 @@
 // dans l'ordre où ils se sont produits : ceux que la règle de lecture montre au client
 // (publics, jamais une étape annulée par une correction). Le statut affiché est celui
 // du colis, tel que le moteur d'événements l'a fixé — l'application n'en déduit rien.
+//
+// La disposition est celle du téléphone de gauche du site (outils/ecrans-app/ecrans.py) :
+// poids, service, magasin et destination en quatre cases, chaque étape marquée d'un
+// point de la couleur de son statut. Tirer l'écran vers le bas le recharge.
 
 import { useEffect } from 'react';
-import { View, ScrollView, Pressable, Linking, Share, StyleSheet } from 'react-native';
+import { View, ScrollView, Pressable, Linking, Share, RefreshControl, StyleSheet } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -28,7 +32,7 @@ export default function DetailColis() {
   const { profil } = useSession();
   const marges = useSafeAreaInsets();
 
-  const { donnees: colis, erreur, recharger, chargement } = useDonnees(async () => {
+  const { donnees: colis, erreur, recharger, rafraichit, tirer, chargement } = useDonnees(async () => {
     // Un lien mal formé ne part même pas au serveur
     if (!UUID.test(String(id || ''))) {
       const e = new Error('introuvable');
@@ -97,7 +101,10 @@ export default function DetailColis() {
       ) : !colis ? (
         <View style={{ paddingTop: 20 }}><EtatErreur erreur={erreur} onReessayer={recharger} /></View>
       ) : (
-        <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 120 }}
+          refreshControl={<RefreshControl refreshing={rafraichit} onRefresh={tirer} tintColor={couleurs.accent} />}
+        >
           {/* Le prolongement de l'en-tête, dans la zone qui défile : la carte du statut le
               chevauche sans être rognée (Android coupe tout ce qui dépasse d'un ScrollView) */}
           <View style={styles.rallonge} />
@@ -124,11 +131,11 @@ export default function DetailColis() {
           </View>
 
           <View style={styles.grille}>
-            {colis.description ? <Info etiquette={t('pa.contenu')} valeur={colis.description} large /> : null}
             <Info etiquette={t('de.poids')} valeur={poids(colis.poids_lb, langue)} />
             <Info etiquette={t('de.service')} valeur={libelleService(colis.service, langue)} />
             {colis.expediteur ? <Info etiquette={t('de.magasin')} valeur={colis.expediteur} /> : null}
-            <Info etiquette={t('de.destination')} valeur={destinationLisible(colis, langue)} large />
+            <Info etiquette={t('de.destination')} valeur={destinationLisible(colis, langue)} large={!colis.expediteur} />
+            {colis.description ? <Info etiquette={t('pa.contenu')} valeur={colis.description} large /> : null}
             {colis.suivi_transporteur ? <Info etiquette={t('de.suivi_magasin')} valeur={colis.suivi_transporteur} large mono /> : null}
           </View>
 
@@ -138,26 +145,18 @@ export default function DetailColis() {
               <Texte doux taille={13}>{t('de.aucune_etape')}</Texte>
             ) : (
               etapes.map((etape, index) => {
-                const premier = index === 0;
                 const dernier = index === etapes.length - 1;
                 const c = STATUTS[etape.statut] || STATUTS.recu;
                 return (
                   <View key={etape.id ?? index} style={{ flexDirection: 'row', gap: 14 }} accessible
                     accessibilityLabel={[libelleStatut(etape.statut, langue), dateRelative(etape.cree_le, langue), etape.lieu, etape.note].filter(Boolean).join(', ')}>
                     <View style={{ alignItems: 'center' }}>
-                      <View
-                        style={[
-                          styles.point,
-                          premier
-                            ? { backgroundColor: c.barre, borderColor: c.fond, borderWidth: 4 }
-                            : { backgroundColor: '#ffffff', borderColor: '#cdd6e8', borderWidth: 2.5 },
-                        ]}
-                      />
+                      <View style={[styles.point, { backgroundColor: c.barre }]} />
                       {!dernier ? <View style={styles.fil} /> : null}
                     </View>
-                    <View style={{ flex: 1, paddingBottom: dernier ? 4 : 16 }}>
-                      <Texte gras taille={14} testID="etape">{libelleStatut(etape.statut, langue)}</Texte>
-                      <Texte doux taille={12.5} style={{ marginTop: 2 }}>
+                    <View style={{ flex: 1, paddingBottom: dernier ? 4 : 12 }}>
+                      <Texte gras taille={13.5} testID="etape">{libelleStatut(etape.statut, langue)}</Texte>
+                      <Texte doux taille={12} style={{ marginTop: 2 }}>
                         {dateRelative(etape.cree_le, langue)}{etape.lieu ? ` · ${etape.lieu}` : ''}
                       </Texte>
                       {etape.note ? (
@@ -235,7 +234,7 @@ const styles = StyleSheet.create({
     borderColor: couleurs.bord,
     padding: 18,
   },
-  point: { width: 13, height: 13, borderRadius: 7 },
+  point: { width: 13, height: 13, borderRadius: 7, marginTop: 2 },
   fil: { flex: 1, width: 2, backgroundColor: '#edf1f8', marginVertical: 2 },
   note: { marginTop: 8, backgroundColor: '#f7f9fd', borderRadius: 12, padding: 10 },
   noteAlerte: { backgroundColor: 'rgba(220,38,38,0.07)' },
