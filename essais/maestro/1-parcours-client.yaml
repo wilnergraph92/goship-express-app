@@ -160,7 +160,9 @@ name: Parcours client
     timeout: 20000
 - takeScreenshot: captures/5-prealerte
 
-# Factures : le solde de la base
+# Factures : le solde de la base — 20 $ à payer (un colis, sans frais de service :
+# depuis supabase-frais-service.sql, ils ne viennent plus à l'enregistrement) plus
+# les 10 $ qui restent sur la facture payée en partie
 - tapOn:
     id: onglet-factures
 - extendedWaitUntil:
@@ -169,7 +171,7 @@ name: Parcours client
     timeout: 20000
 - extendedWaitUntil:
     visible:
-      text: ".*50[.,]00.*"
+      text: ".*30[.,]00.*"
     timeout: 20000
 - takeScreenshot: captures/6-factures
 
