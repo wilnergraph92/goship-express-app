@@ -4,6 +4,12 @@
     "slug": "goship-express",
     "scheme": "goshipexpress",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4a861b01-820f-408e-9d24-88c2a3e528a5"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -76,7 +82,8 @@
           "color": "#f4600d",
           "defaultChannel": "colis"
         }
-      ]
+      ],
+      "./plugins/memoire-gradle"
     ],
     "extra": {
       "router": {},

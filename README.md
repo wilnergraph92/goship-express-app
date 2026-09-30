@@ -334,9 +334,22 @@ Apple) : elle prouve que le projet compile pour iPhone, elle ne s'installe pas.
 
 ## Publier, mettre à jour, revenir en arrière
 
-- **Mise à jour** : nouvelle version dans `app.json`, `eas build --profile production`,
-  `eas submit`. Pas de mise à jour « à distance » (expo-updates n'est pas installé) :
-  chaque changement passe par les boutiques.
+- **Mise à jour à distance (EAS Update, `expo-updates`)** : chaque fusion dans `main`
+  qui touche l'application publie son code sur le canal `preview`
+  (`.github/workflows/mise-a-jour.yml`, secret `EXPO_TOKEN`). Les téléphones qui ont une
+  construction `preview` le téléchargent à l'ouverture et l'appliquent à l'ouverture
+  suivante (au plus deux ouvertures, application fermée entre les deux). L'écran Compte
+  affiche alors « mise à jour du 30/09 17:40 » à côté de la version. Le canal
+  `production` (boutiques) ne reçoit rien automatiquement.
+- **Ce qui passe par une mise à jour** : écrans, textes, couleurs, traductions, images,
+  corrections dans le code JavaScript. **Ce qui demande une construction** : un module
+  natif ajouté, une permission, l'icône, l'écran de démarrage, le nom, une version
+  d'Expo. Dans ce cas, augmenter d'abord `version` dans `app.json` (1.0.0 → 1.0.1) :
+  `runtimeVersion` suit la version (politique `appVersion`), si bien qu'une mise à jour
+  ne va qu'aux constructions de la même version et n'atteint jamais un téléphone qui
+  n'a pas le code natif qu'elle attend.
+- **Nouvelle version des boutiques** : nouvelle version dans `app.json`,
+  `eas build --profile production`, `eas submit`.
 - **Base d'abord** : une migration nécessaire à la nouvelle version s'exécute avant de
   publier l'application ; elle doit rester compatible avec la version précédente (les
   migrations du site n'ajoutent jamais rien de destructif ; `supabase-mobile.sql` garde

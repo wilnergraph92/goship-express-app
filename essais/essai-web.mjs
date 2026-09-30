@@ -153,7 +153,10 @@ async function main() {
   // La liste ne dessine que les cartes proches de l'écran (FlatList) : on vérifie la page
   // demandée à la base (20 colis) et le total, pas le nombre de cartes déjà dessinées, qui
   // dépend de leur hauteur
-  const premiereListe = requetes.slice(avantListe).find((r) => r.includes('/colis?') && !/[?&]id=eq\./.test(r));
+  // L'accueil, revenu au premier plan juste avant, peut encore recharger ses deux derniers
+  // colis (limit=2) après avantListe : sa requête n'est pas celle de la liste
+  const premiereListe = requetes.slice(avantListe)
+    .find((r) => r.includes('/colis?') && !/[?&]id=eq\./.test(r) && !/[?&]limit=2\b/.test(r));
   verifier('première page : 20 colis demandés, total 25, au moins 8 dessinés',
     [/[?&]offset=0\b/.test(premiereListe || '') && /[?&]limit=20\b/.test(premiereListe || ''),
       await texte('colis-total'), (await nombreCartes()) >= 8], [true, '25', true]);

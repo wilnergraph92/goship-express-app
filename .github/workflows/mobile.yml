@@ -118,6 +118,17 @@ jobs:
           # Jamais dans l'application de production : seulement dans cet APK d'essai
           sed -i 's/<application /<application android:usesCleartextTraffic="true" /' android/app/src/main/AndroidManifest.xml
           grep -c 'usesCleartextTraffic="true"' android/app/src/main/AndroidManifest.xml
+      # expo-updates demande le NDK par défaut du plugin Android (27.0.12077973), absent
+      # de la machine. Laissé à Gradle, le téléchargement arrive parfois tronqué
+      # (« Archive is not a ZIP archive ») et la construction échoue : sdkmanager
+      # l'installe avant, en vérifiant l'archive, avec deux reprises.
+      - name: NDK d'expo-updates
+        run: |
+          for essai in 1 2 3; do
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973" > /dev/null && break
+            echo "Installation du NDK : essai $essai échoué"; sleep 10
+          done
+          test -f "$ANDROID_HOME/ndk/27.0.12077973/source.properties"
       - name: Construire
         working-directory: android
         run: ./gradlew ${{ matrix.gradle }} --no-daemon
