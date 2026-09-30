@@ -123,6 +123,11 @@ async function main() {
       await page.getByText('Solde à payer').count(), await page.getByText('Derniers messages').count()], [0, 0, 0, 0]);
   verifier('accueil : les deux derniers colis, sans « Mis à jour »',
     [await page.locator('[data-testid^="colis-GSE-"]').count(), await page.getByText(/^Mis à jour/).count()], [2, 0]);
+  verifier('accueil : plus de bande « Annoncer un achat » (le « + » orange y mène)',
+    await page.getByText('Annoncer un achat').count(), 0);
+  const suivis = await page.locator('[data-testid^="suivi-GSE-"]').allTextContents();
+  verifier('cartes de l\'accueil : le suivi du vendeur de chaque colis',
+    suivis.length === 2 && suivis.every((x) => /^Suivi vendeur : TBAMARIE\d{4}$/.test(x.trim())), true);
   // La carte d'un colis garde son fond blanc et sa marge (un <Link asChild> les perdait)
   verifier('carte d\'un colis : fond blanc et marge intérieure', await page.locator('[data-testid^="colis-GSE-"]').first()
     .evaluate((e) => [getComputedStyle(e).backgroundColor, getComputedStyle(e).paddingTop]), ['rgb(255, 255, 255)', '15px']);
@@ -139,12 +144,19 @@ async function main() {
   await visible('stat-en-cours-nombre', 8000);
 
   console.log('C. Mes colis : pages, filtres, recherche côté base');
+  const avantListe = requetes.length;
   await onglet('colis');
   t0 = Date.now();
   await visible('colis-liste', 15000);
   await cartes().first().waitFor();
   const tempsListe = Date.now() - t0;
-  verifier('première page : 20 colis, total 25', [await nombreCartes(), await texte('colis-total')], [20, '25']);
+  // La liste ne dessine que les cartes proches de l'écran (FlatList) : on vérifie la page
+  // demandée à la base (20 colis) et le total, pas le nombre de cartes déjà dessinées, qui
+  // dépend de leur hauteur
+  const premiereListe = requetes.slice(avantListe).find((r) => r.includes('/colis?') && !/[?&]id=eq\./.test(r));
+  verifier('première page : 20 colis demandés, total 25, au moins 8 dessinés',
+    [/[?&]offset=0\b/.test(premiereListe || '') && /[?&]limit=20\b/.test(premiereListe || ''),
+      await texte('colis-total'), (await nombreCartes()) >= 8], [true, '25', true]);
   const avantPage = requetes.filter((r) => r.includes('/colis?')).length;
   for (let i = 0; i < 6 && (await nombreCartes()) < 25; i += 1) {
     await cartes().last().scrollIntoViewIfNeeded();

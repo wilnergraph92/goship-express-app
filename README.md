@@ -43,7 +43,7 @@ session) et l'état local des écrans. Aucune base locale.
 | Dossier / fichier | Rôle |
 |---|---|
 | `app/_layout.jsx` | Démarrage, polices, aiguillage selon la session, liens après connexion |
-| `app/(onglets)/` | Accueil, Mes colis, Pré-alerte (bouton orange), Factures, Compte. L'accueil suit le téléphone du site (`outils/ecrans-app/ecrans.py` du dépôt du site) : adresse de Miami, compteurs, deux derniers colis, pré-alerte |
+| `app/(onglets)/` | Accueil, Mes colis, Pré-alerte (bouton orange), Factures, Compte. L'accueil suit le téléphone du site (`outils/ecrans-app/ecrans.py` du dépôt du site) : adresse de Miami, compteurs, deux derniers colis (avec le suivi du vendeur) ; la pré-alerte par le « + » orange |
 | `app/colis/[id].jsx` | Détail d'un colis et ses étapes (événements réels), disposé comme le téléphone du site |
 | `app/messages.jsx` | Les derniers messages reçus (e-mail, WhatsApp, notification), ouverts par la cloche de l'accueil |
 | `app/facture/[id].jsx` | Une facture : lignes, paiements reçus, total, payé, solde |
