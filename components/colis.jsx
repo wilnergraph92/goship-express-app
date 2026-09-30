@@ -61,7 +61,9 @@ export function FriseLegendee({ statut, historique }) {
 // memo : une longue liste ne redessine pas toutes ses cartes à chaque page chargée.
 // Un Pressable qui ouvre le colis, pas un <Link asChild> : le lien remplaçait le style
 // calculé de la carte (fond blanc, bord, ombre, marges), et la carte n'en avait plus.
-// sansDate : l'accueil, comme le téléphone du site, n'écrit pas « Mis à jour … »
+// sansDate : l'accueil, comme le téléphone du site, n'écrit pas « Mis à jour … ».
+// Le numéro de suivi du vendeur (Amazon, SHEIN…) s'affiche quand le colis en a un :
+// c'est celui que le client connaît.
 export const CarteColis = memo(function CarteColis({ colis, sansDate }) {
   const { t, langue } = useLangue();
   const details = [colis.expediteur, poids(colis.poids_lb, langue), libelleService(colis.service, langue)]
@@ -85,6 +87,11 @@ export const CarteColis = memo(function CarteColis({ colis, sansDate }) {
         <Texte gras taille={14.5} style={{ marginTop: 9 }} numberOfLines={1}>{colis.description}</Texte>
       ) : null}
       {details ? <Texte doux taille={12.5} style={{ marginTop: 3 }} numberOfLines={1}>{details}</Texte> : null}
+      {colis.suivi_transporteur ? (
+        <Texte doux taille={12} style={{ marginTop: 3 }} numberOfLines={1} testID={'suivi-' + colis.numero}>
+          {t('co.suivi_vendeur')} : <Texte taille={12} style={{ fontFamily: polices.mono, color: couleurs.texte }}>{colis.suivi_transporteur}</Texte>
+        </Texte>
+      ) : null}
       <View style={{ marginTop: 12 }}>
         <Frise statut={colis.statut} />
       </View>

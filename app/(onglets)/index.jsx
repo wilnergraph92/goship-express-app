@@ -1,5 +1,5 @@
-// Accueil : adresse de Miami, colis en cours, action requise, derniers colis, et la
-// bande de la pré-alerte. La disposition est celle des téléphones du site (section
+// Accueil : adresse de Miami, colis en cours, action requise, derniers colis. La
+// pré-alerte s'ouvre par le bouton orange de la barre du bas. La disposition est celle des téléphones du site (section
 // « Vos colis dans votre poche », outils/ecrans-app/ecrans.py) : rien de plus. Le solde
 // est dans Factures, les messages derrière la cloche (messages.jsx), le suivi d'un
 // numéro par le scanner ou un lien.
@@ -207,21 +207,6 @@ export default function Accueil() {
             )}
           </>
         )}
-
-        <Pressable
-          onPress={() => router.push('/(onglets)/prealerte')}
-          style={styles.bandePrealerte}
-          accessibilityRole="button"
-        >
-          <View style={styles.rondPrealerte}>
-            <Feather name="bell" size={19} color="#ff8b45" />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Texte gras taille={14} style={{ color: '#ffffff' }}>{t('ac.prealerte_titre')}</Texte>
-            <Texte taille={12.5} style={{ color: couleurs.surNuit }}>{t('ac.prealerte_texte')}</Texte>
-          </View>
-          <Feather name="chevron-right" size={20} color="#ffffff" />
-        </Pressable>
       </ScrollView>
     </View>
   );
@@ -302,15 +287,4 @@ const styles = StyleSheet.create({
     padding: 13, borderRadius: 16, backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 1, borderColor: 'rgba(220,38,38,0.25)',
   },
   ligneTitre: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginHorizontal: 18, marginTop: 20 },
-  bandePrealerte: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-    marginHorizontal: 18,
-    marginTop: 16,
-    padding: 14,
-    borderRadius: 20,
-    backgroundColor: couleurs.nuit,
-  },
-  rondPrealerte: { width: 38, height: 38, borderRadius: 13, backgroundColor: 'rgba(244,96,13,0.20)', alignItems: 'center', justifyContent: 'center' },
 });
