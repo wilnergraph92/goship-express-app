@@ -491,6 +491,19 @@ async function main() {
   await onglet('compte');
   await id('compte-notifications').waitFor();
   verifier('notifications : état réel (indisponibles dans un navigateur)', (await texte('compte-notifications')).includes('Indisponibles sur cet appareil'), true);
+  const reseaux = page.locator('[data-testid^="reseau-"]');
+  verifier('suivez-nous : Facebook, Instagram et TikTok, avec leur nom',
+    await reseaux.evaluateAll((els) => els.map((e) => e.getAttribute('data-testid') + ' ' + e.getAttribute('aria-label'))),
+    ['reseau-facebook Facebook', 'reseau-instagram Instagram', 'reseau-tiktok TikTok']);
+  await id('reseau-facebook').scrollIntoViewIfNeeded();
+  await attendre(300);
+  await capture('09-compte-reseaux');
+  const liensReseaux = [];
+  await page.exposeFunction('__ouvrir', (u) => liensReseaux.push(u)).catch(() => {});
+  await page.evaluate(() => { window.open = (u) => { window.__ouvrir(String(u)); return null; }; });
+  for (const r of ['facebook', 'instagram', 'tiktok']) { await id('reseau-' + r).click(); await attendre(150); }
+  verifier('suivez-nous : chaque logo ouvre la page de l\'entreprise', liensReseaux,
+    ['https://www.facebook.com/goshipexpress', 'https://www.instagram.com/goshipexpressllc', 'https://www.tiktok.com/@goshipexpress.net']);
   verifier('version affichée', ((await texte('compte-version')).match(/Version [\d.]+(?: \(\d+\))?/) || [''])[0], 'Version 1.0.0');
   await page.getByText('Langue').click();
   await id('langue-ht').click();
