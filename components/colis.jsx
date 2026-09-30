@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { couleurs, polices, rayons, ombres, STATUTS, ETAPES } from '../lib/theme';
 import { Texte, Mono } from './ui';
 import { useLangue } from '../lib/i18n';
@@ -59,6 +59,8 @@ export function FriseLegendee({ statut, historique }) {
 }
 
 // memo : une longue liste ne redessine pas toutes ses cartes à chaque page chargée.
+// Un Pressable qui ouvre le colis, pas un <Link asChild> : le lien remplaçait le style
+// calculé de la carte (fond blanc, bord, ombre, marges), et la carte n'en avait plus.
 // sansDate : l'accueil, comme le téléphone du site, n'écrit pas « Mis à jour … »
 export const CarteColis = memo(function CarteColis({ colis, sansDate }) {
   const { t, langue } = useLangue();
@@ -68,31 +70,30 @@ export const CarteColis = memo(function CarteColis({ colis, sansDate }) {
   const statut = libelleStatut(colis.statut, langue);
 
   return (
-    <Link href={'/colis/' + colis.id} asChild>
-      <Pressable
-        style={({ pressed }) => [styles.carte, ombres.carte, pressed && { opacity: 0.9 }]}
-        accessibilityRole="button"
-        accessibilityLabel={[colis.numero, statut, colis.description].filter(Boolean).join(', ')}
-        testID={'colis-' + colis.numero}
-      >
-        <View style={styles.ligneHaut}>
-          <Mono taille={13}>{colis.numero}</Mono>
-          <PuceStatut statut={colis.statut} />
-        </View>
-        {colis.description ? (
-          <Texte gras taille={14.5} style={{ marginTop: 9 }} numberOfLines={1}>{colis.description}</Texte>
-        ) : null}
-        {details ? <Texte doux taille={12.5} style={{ marginTop: 3 }} numberOfLines={1}>{details}</Texte> : null}
-        <View style={{ marginTop: 12 }}>
-          <Frise statut={colis.statut} />
-        </View>
-        {sansDate ? null : (
-          <Texte doux taille={11.5} style={{ marginTop: 9, color: couleurs.texteFaible }}>
-            {t('co.maj')} {dateRelative(colis.maj_le, langue, true)}
-          </Texte>
-        )}
-      </Pressable>
-    </Link>
+    <Pressable
+      onPress={() => router.push('/colis/' + colis.id)}
+      style={({ pressed }) => [styles.carte, ombres.carte, pressed && { opacity: 0.9 }]}
+      accessibilityRole="button"
+      accessibilityLabel={[colis.numero, statut, colis.description].filter(Boolean).join(', ')}
+      testID={'colis-' + colis.numero}
+    >
+      <View style={styles.ligneHaut}>
+        <Mono taille={13}>{colis.numero}</Mono>
+        <PuceStatut statut={colis.statut} />
+      </View>
+      {colis.description ? (
+        <Texte gras taille={14.5} style={{ marginTop: 9 }} numberOfLines={1}>{colis.description}</Texte>
+      ) : null}
+      {details ? <Texte doux taille={12.5} style={{ marginTop: 3 }} numberOfLines={1}>{details}</Texte> : null}
+      <View style={{ marginTop: 12 }}>
+        <Frise statut={colis.statut} />
+      </View>
+      {sansDate ? null : (
+        <Texte doux taille={11.5} style={{ marginTop: 9, color: couleurs.texteFaible }}>
+          {t('co.maj')} {dateRelative(colis.maj_le, langue, true)}
+        </Texte>
+      )}
+    </Pressable>
   );
 });
 
