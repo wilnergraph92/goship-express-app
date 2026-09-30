@@ -43,10 +43,11 @@ session) et l'état local des écrans. Aucune base locale.
 | Dossier / fichier | Rôle |
 |---|---|
 | `app/_layout.jsx` | Démarrage, polices, aiguillage selon la session, liens après connexion |
-| `app/(onglets)/` | Accueil, Mes colis, Pré-alerte (bouton orange), Factures, Compte |
-| `app/colis/[id].jsx` | Détail d'un colis et ses étapes (événements réels) |
+| `app/(onglets)/` | Accueil, Mes colis, Pré-alerte (bouton orange), Factures, Compte. L'accueil suit le téléphone du site (`outils/ecrans-app/ecrans.py` du dépôt du site) : adresse de Miami, compteurs, deux derniers colis, pré-alerte |
+| `app/colis/[id].jsx` | Détail d'un colis et ses étapes (événements réels), disposé comme le téléphone du site |
+| `app/messages.jsx` | Les derniers messages reçus (e-mail, WhatsApp, notification), ouverts par la cloche de l'accueil |
 | `app/facture/[id].jsx` | Une facture : lignes, paiements reçus, total, payé, solde |
-| `app/suivi.jsx` | Suivre un numéro : son colis, sinon le suivi public du site |
+| `app/suivi.jsx` | Suivre un numéro (scanner, lien) : son colis, sinon le suivi public du site |
 | `app/scanner.jsx` | Appareil photo : suivi du vendeur (pré-alerte) ou étiquette GoShip |
 | `app/paiement.jsx`, `app/agences.jsx`, `app/connexion.jsx`, `app/inscription.jsx` | |
 | `lib/api.js` | **Toutes** les requêtes (tables et fonctions de la base) |
@@ -111,7 +112,7 @@ propre compte (`client_id`).
 
 | Écran | Source (dans la base) |
 |---|---|
-| Accueil (chiffres, solde, messages) | `mon_resume()` — la même fonction que l'espace client du site |
+| Accueil (chiffres), messages de la cloche | `mon_resume()` — la même fonction que l'espace client du site |
 | Mes colis | table `colis` : pages de 20, filtres et recherche faits par la base |
 | Détail, étapes | `colis` + `colis_historique` (étapes publiques ; une étape corrigée disparaît) |
 | Suivi d'un numéro | son colis, sinon `suivre_colis()` (suivi public du site) |
@@ -226,6 +227,8 @@ site aura son propre domaine.
 - Chaque écran distingue chargement, vide, erreur, accès refusé, introuvable et hors
   ligne. Des données déjà affichées restent à l'écran si la mise à jour échoue, avec
   « Connexion indisponible. Certaines données peuvent ne pas être à jour. »
+- **Tirer l'écran vers le bas** le recharge depuis la base : accueil, Mes colis, détail
+  d'un colis, messages, Factures, détail d'une facture, suivi d'un numéro.
 - Aucune donnée métier n'est gardée sur le téléphone : pas de mode hors ligne, et rien
   n'est annoncé « enregistré » sans la réponse du serveur.
 - Jamais « undefined », « null », « Error 500 » ni trace technique à l'écran ; le détail

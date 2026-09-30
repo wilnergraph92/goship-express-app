@@ -1,11 +1,15 @@
-// Accueil : adresse de Miami, colis en cours, action requise, solde, derniers colis et
-// derniers messages, suivi rapide.
+// Accueil : adresse de Miami, colis en cours, action requise, derniers colis, et la
+// bande de la pré-alerte. La disposition est celle des téléphones du site (section
+// « Vos colis dans votre poche », outils/ecrans-app/ecrans.py) : rien de plus. Le solde
+// est dans Factures, les messages derrière la cloche (messages.jsx), le suivi d'un
+// numéro par le scanner ou un lien.
 //
 // Tous les chiffres viennent de la base (mon_resume, la même fonction que l'espace
-// client du site) : l'application ne compte ni n'additionne rien elle-même.
+// client du site) : l'application ne compte ni n'additionne rien elle-même. Tirer
+// l'écran vers le bas recharge tout.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ScrollView, Image, Pressable, RefreshControl, Share, TextInput, StyleSheet } from 'react-native';
+import { View, ScrollView, Image, Pressable, RefreshControl, Share, StyleSheet } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -18,7 +22,6 @@ import { useLangue } from '../../lib/i18n';
 import { useSession } from '../../lib/session';
 import { useDonnees } from '../../lib/useDonnees';
 import { mesColis, monResume, surveiller } from '../../lib/api';
-import { dateRelative, montant, libelleStatut } from '../../lib/format';
 import { profilIncomplet } from '../../lib/connexion-sociale';
 
 function adresseComplete(profil) {
@@ -32,24 +35,34 @@ function adresseComplete(profil) {
   ].filter(Boolean).join('\n');
 }
 
+// À l'écran, trois lignes comme le téléphone du site : « nom · code », la rue et
+// l'appartement, la ville et le pays. Copier et Partager donnent l'adresse ligne par
+// ligne (adresseComplete), telle qu'un formulaire de livraison la demande.
+function adresseAffichee(profil) {
+  const a = config.adresseMiami;
+  return [
+    [profil?.nom_complet || '', profil?.code || ''].filter(Boolean).join(' · '),
+    [a.ligne1, a.ligne2].filter(Boolean).join(' — '),
+    [a.ligne3, a.pays].filter(Boolean).join(', '),
+  ].filter(Boolean).join('\n');
+}
+
 // Profil incomplet (compte ouvert avec Google, le plus souvent) : « Mes informations »
 // s'ouvre de lui-même, une fois par compte et par lancement de l'application. Refermé,
 // il reste la carte de l'accueil ; et la base refuse les pré-alertes tant qu'il manque
 // quelque chose.
 const profilsProposes = new Set();
 
-const STATUTS_CONNUS = ['recu', 'emballe', 'embarque', 'distribution', 'succursale', 'disponible', 'livre', 'incident'];
-
 export default function Accueil() {
-  const { t, langue } = useLangue();
+  const { t } = useLangue();
   const { profil, equipe } = useSession();
   const marges = useSafeAreaInsets();
   const [copie, setCopie] = useState(false);
-  const [numero, setNumero] = useState('');
   const premier = useRef(true);
 
+  // Deux derniers colis, comme le téléphone du site ; « Tout voir » mène aux autres
   const { donnees, erreur, recharger, rafraichit, tirer, chargement } = useDonnees(async () => {
-    const [resume, derniers] = await Promise.all([monResume(), mesColis({ parPage: 3 })]);
+    const [resume, derniers] = await Promise.all([monResume(), mesColis({ parPage: 2 })]);
     return { resume, derniers: derniers.lignes };
   }, []);
 
@@ -67,19 +80,11 @@ export default function Accueil() {
 
   const resume = donnees?.resume;
   const c = resume?.colis || {};
-  const f = config.modules.factures ? resume?.factures : null;
-  const messages = (resume?.notifications || []).slice(0, 3);
 
   async function copier() {
     await Clipboard.setStringAsync(adresseComplete(profil));
     setCopie(true);
     setTimeout(() => setCopie(false), 1800);
-  }
-
-  function suivre() {
-    const n = numero.trim();
-    if (n.length < 4) return;
-    router.push({ pathname: '/suivi', params: { numero: n } });
   }
 
   return (
@@ -90,12 +95,13 @@ export default function Accueil() {
           <Image source={require('../../assets/logo-goship-blanc.png')} style={{ width: 108, height: 27 }}
             resizeMode="contain" accessibilityLabel="GoShip Express" />
           <Pressable
-            onPress={() => router.push('/(onglets)/colis')}
+            onPress={() => router.push('/messages')}
             style={styles.rond}
             accessibilityRole="button"
-            accessibilityLabel={t('co.titre')}
+            accessibilityLabel={t('ac.messages')}
+            testID="accueil-messages"
           >
-            <Feather name="package" size={19} color="#ffffff" />
+            <Feather name="bell" size={19} color="#ffffff" />
             {c.disponibles > 0 || c.action_requise > 0 ? <View style={styles.pastille} /> : null}
           </Pressable>
         </View>
@@ -130,7 +136,7 @@ export default function Accueil() {
               <Etiquette>{t('ac.adresse')}</Etiquette>
               <Feather name="map-pin" size={16} color={couleurs.accent} />
             </View>
-            <Texte gras taille={14} style={{ marginTop: 9, lineHeight: 21 }}>{adresseComplete(profil)}</Texte>
+            <Texte gras taille={14} style={{ marginTop: 9, lineHeight: 21 }} testID="accueil-adresse">{adresseAffichee(profil)}</Texte>
             <View style={{ flexDirection: 'row', gap: 9, marginTop: 14 }}>
               <Bouton
                 titre={copie ? t('gen.copie') : t('gen.copier')}
@@ -171,7 +177,7 @@ export default function Accueil() {
         ) : (
           <>
             <View style={{ flexDirection: 'row', gap: 11, marginHorizontal: 18, marginTop: 14 }}>
-              <Stat nombre={c.en_cours} texte={t('ac.en_route')} icone="send" couleur={couleurs.bleu} id="stat-en-cours"
+              <Stat nombre={c.en_cours} texte={t('ac.en_route')} icone="navigation" couleur={couleurs.bleu} id="stat-en-cours"
                 onPress={() => router.push('/(onglets)/colis')} />
               <Stat nombre={c.disponibles} texte={t('ac.a_retirer')} icone="package" couleur={couleurs.accent} id="stat-disponibles"
                 onPress={() => router.push('/(onglets)/colis')} />
@@ -186,45 +192,6 @@ export default function Accueil() {
               </Pressable>
             ) : null}
 
-            {f ? (
-              <Pressable onPress={() => router.push('/(onglets)/factures')} style={[styles.carteSolde, ombres.carte]}
-                accessibilityRole="button" testID="accueil-solde">
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Etiquette>{t('ac.solde')}</Etiquette>
-                  <Titre taille={22} testID="accueil-solde-montant">{montant(f.solde_usd, langue)}</Titre>
-                  <Texte doux taille={12.5}>
-                    {Number(f.solde_usd) > 0
-                      ? (Number(f.montant_en_retard) > 0 ? t('ac.en_retard', { montant: montant(f.montant_en_retard, langue) }) : '')
-                      : t('ac.a_jour')}
-                  </Texte>
-                </View>
-                <Feather name="chevron-right" size={20} color={couleurs.texteFaible} />
-              </Pressable>
-            ) : null}
-
-            <View style={[styles.suivre, ombres.carte]}>
-              <Etiquette>{t('ac.suivre_titre')}</Etiquette>
-              <View style={{ flexDirection: 'row', gap: 9, marginTop: 9 }}>
-                <TextInput
-                  value={numero}
-                  onChangeText={setNumero}
-                  onSubmitEditing={suivre}
-                  placeholder={t('ac.suivre')}
-                  placeholderTextColor={couleurs.texteFaible}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  returnKeyType="search"
-                  style={styles.champSuivi}
-                  accessibilityLabel={t('ac.suivre_titre')}
-                  testID="accueil-suivi"
-                />
-                <Pressable onPress={suivre} style={styles.boutonSuivi} accessibilityRole="button"
-                  accessibilityLabel={t('ac.suivre_titre')} testID="accueil-suivi-ok">
-                  <Feather name="search" size={20} color="#ffffff" />
-                </Pressable>
-              </View>
-            </View>
-
             <View style={styles.ligneTitre}>
               <Titre taille={17}>{t('ac.derniers')}</Titre>
               <Pressable onPress={() => router.push('/(onglets)/colis')} accessibilityRole="button" hitSlop={10}>
@@ -235,30 +202,9 @@ export default function Accueil() {
               <Vide titre={t('co.vide')} texte={t('co.vide_texte')} />
             ) : (
               <View style={{ gap: 11, marginHorizontal: 18, marginTop: 11 }}>
-                {donnees.derniers.map((x) => <CarteColis key={x.id} colis={x} />)}
+                {donnees.derniers.map((x) => <CarteColis key={x.id} colis={x} sansDate />)}
               </View>
             )}
-
-            {messages.length > 0 ? (
-              <View style={[styles.messages, ombres.carte]} testID="accueil-messages">
-                <Titre taille={15.5} style={{ marginBottom: 6 }}>{t('ac.messages')}</Titre>
-                {messages.map((m, i) => (
-                  <View key={i} style={[styles.message, i < messages.length - 1 && styles.messageBord]}>
-                    <Feather name={m.canal === 'email' ? 'mail' : m.canal === 'whatsapp' ? 'message-circle' : 'bell'}
-                      size={16} color={couleurs.texteDoux} />
-                    <View style={{ flex: 1 }}>
-                      <Texte gras taille={13.5}>
-                        {STATUTS_CONNUS.indexOf(m.evenement) >= 0 ? libelleStatut(m.evenement, langue)
-                          : m.evenement === 'bienvenue' ? t('msg.bienvenue') : t('msg.autre')}
-                      </Texte>
-                      <Texte doux taille={12}>
-                        {[t('msg.' + m.canal), m.numero, dateRelative(m.envoye_le, langue)].filter(Boolean).join(' · ')}
-                      </Texte>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : null}
           </>
         )}
 
@@ -355,26 +301,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 18, marginTop: 11,
     padding: 13, borderRadius: 16, backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 1, borderColor: 'rgba(220,38,38,0.25)',
   },
-  carteSolde: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 18, marginTop: 11, padding: 15,
-    backgroundColor: couleurs.carte, borderRadius: 18, borderWidth: 1, borderColor: couleurs.bord,
-  },
-  suivre: {
-    marginHorizontal: 18, marginTop: 11, padding: 15,
-    backgroundColor: couleurs.carte, borderRadius: 18, borderWidth: 1, borderColor: couleurs.bord,
-  },
-  champSuivi: {
-    flex: 1, minHeight: 48, paddingHorizontal: 14, borderRadius: rayons.champ, borderWidth: 1, borderColor: couleurs.bord,
-    fontFamily: polices.mono, fontSize: 14, color: couleurs.texte,
-  },
-  boutonSuivi: { width: 48, height: 48, borderRadius: rayons.champ, backgroundColor: couleurs.nuit, alignItems: 'center', justifyContent: 'center' },
   ligneTitre: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginHorizontal: 18, marginTop: 20 },
-  messages: {
-    marginHorizontal: 18, marginTop: 16, padding: 15,
-    backgroundColor: couleurs.carte, borderRadius: 18, borderWidth: 1, borderColor: couleurs.bord,
-  },
-  message: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 9 },
-  messageBord: { borderBottomWidth: 1, borderBottomColor: '#f1f4fa' },
   bandePrealerte: {
     flexDirection: 'row',
     alignItems: 'center',

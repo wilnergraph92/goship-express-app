@@ -117,10 +117,23 @@ async function main() {
   verifier('en cours = mon_resume', await texte('stat-en-cours-nombre'), String(resume.colis.en_cours));
   verifier('à retirer = mon_resume', await texte('stat-disponibles-nombre'), String(resume.colis.disponibles));
   verifier('action requise signalée', await visible('stat-action', 2000), resume.colis.action_requise > 0);
-  verifier('solde = mon_resume', await texte('accueil-solde-montant'), argent(resume.factures.solde_usd));
+  // La disposition des téléphones du site : ni solde, ni suivi d'un numéro, ni messages sur l'accueil
+  verifier('accueil : ni solde, ni « Suivre un colis », ni « Derniers messages »',
+    [await id('accueil-solde').count(), await id('accueil-suivi').count(),
+      await page.getByText('Solde à payer').count(), await page.getByText('Derniers messages').count()], [0, 0, 0, 0]);
+  verifier('accueil : les deux derniers colis, sans « Mis à jour »',
+    [await page.locator('[data-testid^="colis-GSE-"]').count(), await page.getByText(/^Mis à jour/).count()], [2, 0]);
   verifier('nom et code du client', [await texte('accueil-nom'), await texte('accueil-code')],
     [await sql(`select nom_complet from clients where id = '${MARIE}';`), await sql(`select code from clients where id = '${MARIE}';`)]);
   await capture('02-accueil');
+  await id('accueil-messages').click();
+  const nbMessages = (resume.notifications || []).length;
+  verifier('la cloche ouvre les messages de mon_resume',
+    [await visible(nbMessages ? 'messages-liste' : 'messages-vide', 8000), await page.locator('[data-testid="message"]').count()],
+    [true, nbMessages]);
+  await capture('02b-messages');
+  await id('retour').click();
+  await visible('stat-en-cours-nombre', 8000);
 
   console.log('C. Mes colis : pages, filtres, recherche côté base');
   await onglet('colis');
@@ -190,9 +203,7 @@ async function main() {
   verifier('lien mal formé : refusé sans requête', requetes.slice(avantLien).filter((r) => r.includes('/colis?')).length, 0);
 
   console.log('E. Suivi (même moteur que le site)');
-  await aller('/');
-  await id('accueil-suivi').fill('GSE-1026-HT');
-  await id('accueil-suivi-ok').click();
+  await aller('/suivi?numero=GSE-1026-HT');
   verifier('colis d\'un autre : suivi public', await visible('suivi-public'), true);
   verifier('… sans sa description ni son client', [await page.getByText('Colis de Jean').count(), await page.getByText('Jean Pierre').count()], [0, 0]);
   await aller('/suivi?numero=GSE-1002-HT');

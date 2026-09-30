@@ -58,8 +58,9 @@ export function FriseLegendee({ statut, historique }) {
   );
 }
 
-// memo : une longue liste ne redessine pas toutes ses cartes à chaque page chargée
-export const CarteColis = memo(function CarteColis({ colis }) {
+// memo : une longue liste ne redessine pas toutes ses cartes à chaque page chargée.
+// sansDate : l'accueil, comme le téléphone du site, n'écrit pas « Mis à jour … »
+export const CarteColis = memo(function CarteColis({ colis, sansDate }) {
   const { t, langue } = useLangue();
   const details = [colis.expediteur, poids(colis.poids_lb, langue), libelleService(colis.service, langue)]
     .filter((v) => v && v !== '—')
@@ -85,9 +86,11 @@ export const CarteColis = memo(function CarteColis({ colis }) {
         <View style={{ marginTop: 12 }}>
           <Frise statut={colis.statut} />
         </View>
-        <Texte doux taille={11.5} style={{ marginTop: 9, color: couleurs.texteFaible }}>
-          {t('co.maj')} {dateRelative(colis.maj_le, langue, true)}
-        </Texte>
+        {sansDate ? null : (
+          <Texte doux taille={11.5} style={{ marginTop: 9, color: couleurs.texteFaible }}>
+            {t('co.maj')} {dateRelative(colis.maj_le, langue, true)}
+          </Texte>
+        )}
       </Pressable>
     </Link>
   );

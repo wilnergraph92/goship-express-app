@@ -2,7 +2,7 @@
 // exactement les valeurs de la base (mes_factures). Payer ouvre l'écran de paiement ;
 // c'est l'équipe qui enregistre le paiement reçu, jamais l'application.
 
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { Redirect, useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import config from '../../config';
@@ -24,7 +24,7 @@ function Detail() {
   const { t, langue } = useLangue();
   const marges = useSafeAreaInsets();
 
-  const { donnees: f, erreur, recharger, chargement } = useDonnees(async () => {
+  const { donnees: f, erreur, recharger, rafraichit, tirer, chargement } = useDonnees(async () => {
     // mes_factures ne rend que les factures du compte connecté
     const trouvee = (await mesFactures()).find((x) => x.id === String(id));
     if (!trouvee) {
@@ -46,7 +46,9 @@ function Detail() {
       ) : !f ? (
         <EtatErreur erreur={erreur} onReessayer={recharger} />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 18, gap: 14, paddingBottom: marges.bottom + 30 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: 18, gap: 14, paddingBottom: marges.bottom + 30 }}
+          refreshControl={<RefreshControl refreshing={rafraichit} onRefresh={tirer} tintColor={couleurs.accent} />}>
           <View style={[styles.carte, ombres.carte]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Mono taille={13.5}>{f.numero}</Mono>

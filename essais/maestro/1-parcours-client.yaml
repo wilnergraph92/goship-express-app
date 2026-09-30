@@ -104,10 +104,12 @@ name: Parcours client
 - openLink: goshipexpress://colis/${COLIS_MARIE}
 - runFlow:
     file: commun/ouvrir-lien-ios.yaml
+# detail-statut, pas detail-numero : l'en-tête (et son numéro, encore vide) paraît
+# avant la réponse de la base ; le statut, seulement avec le colis chargé
 - runFlow:
     file: commun/attendre-lien.yaml
     env:
-      ATTENDU: detail-numero
+      ATTENDU: detail-statut
 - assertVisible:
     id: detail-numero
     text: GSE-1002-HT
