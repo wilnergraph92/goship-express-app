@@ -190,10 +190,15 @@ jeton du téléphone après la connexion, le renouvelle s'il change, et le déta
 déconnexion. Toucher une notification ouvre le colis (application fermée, en arrière-plan
 ou ouverte).
 
-**Pour qu'une notification arrive vraiment, il manque encore** :
+**Pour qu'une notification arrive vraiment, il faut** :
 
 1. un projet EAS : fait, `extra.eas.projectId` dans `app.json` (projet créé sur expo.dev) ;
-2. Android : un projet Firebase et sa clé FCM v1, déposée chez Expo (`eas credentials`) ;
+2. Android : un projet Firebase (fait : `goship-express-93df1`, `google-services.json` à la
+   racine, déclaré par `android.googleServicesFile` ; ce fichier n'est pas secret, Google le
+   prévoit dans l'application) et sa clé FCM v1 (compte de service, **secrète**), déposée
+   par le propriétaire sur expo.dev > Credentials > Android, jamais dans ce dépôt. Une
+   construction d'avant `google-services.json` affiche « Pas encore en service » : seule une
+   nouvelle construction Android l'active, pas une mise à jour EAS Update ;
 3. iOS : une clé APNs (compte Apple Developer), gérée par `eas credentials` ;
 4. un vrai téléphone (un simulateur ne reçoit rien).
 

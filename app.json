@@ -27,6 +27,7 @@
     },
     "android": {
       "package": "com.goshipexpress.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",
