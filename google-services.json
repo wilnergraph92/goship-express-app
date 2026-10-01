@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "302257724995",
+    "project_id": "goship-express-93df1",
+    "storage_bucket": "goship-express-93df1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:302257724995:android:43c89af4e6eacaf23e7ef6",
+        "android_client_info": {
+          "package_name": "com.goshipexpress.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYURPPZrf-ov9DyXhHdIx5FSeBtkVd4kQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
