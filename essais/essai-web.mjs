@@ -120,6 +120,8 @@ async function main() {
   const resume = JSON.parse(await commeClient(MARIE, 'select public.mon_resume()::text;'));
   verifier('en cours = mon_resume', await texte('stat-en-cours-nombre'), String(resume.colis.en_cours));
   verifier('à retirer = mon_resume', await texte('stat-disponibles-nombre'), String(resume.colis.disponibles));
+  // La case dit « en cours » : son nombre compte aussi les colis à retirer, ce n'est pas « en route »
+  verifier('la case du nombre en cours dit « en cours »', /^\d+ en cours$/.test((await id('stat-en-cours').first().getAttribute('aria-label')) || ''), true);
   verifier('action requise signalée', await visible('stat-action', 2000), resume.colis.action_requise > 0);
   // La disposition des téléphones du site : ni solde, ni suivi d'un numéro, ni messages sur l'accueil
   verifier('accueil : ni solde, ni « Suivre un colis », ni « Derniers messages »',

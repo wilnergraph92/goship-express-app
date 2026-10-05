@@ -182,7 +182,7 @@ export default function Accueil() {
         ) : (
           <>
             <View style={{ flexDirection: 'row', gap: 11, marginHorizontal: 18, marginTop: 14 }}>
-              <Stat nombre={c.en_cours} texte={t('ac.en_route')} icone="navigation" couleur={couleurs.bleu} id="stat-en-cours"
+              <Stat nombre={c.en_cours} texte={t('ac.en_cours')} icone="navigation" couleur={couleurs.bleu} id="stat-en-cours"
                 onPress={() => router.push('/(onglets)/colis')} />
               <Stat nombre={c.disponibles} texte={t('ac.a_retirer')} icone="package" couleur={couleurs.accent} id="stat-disponibles"
                 onPress={() => router.push('/(onglets)/colis')} />
