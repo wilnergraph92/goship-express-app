@@ -43,7 +43,8 @@ session) et l'état local des écrans. Aucune base locale.
 | Dossier / fichier | Rôle |
 |---|---|
 | `app/_layout.jsx` | Démarrage, polices, aiguillage selon la session, liens après connexion |
-| `app/(onglets)/` | Accueil, Mes colis, Pré-alerte (bouton orange), Factures, Compte. L'accueil suit le téléphone du site (`outils/ecrans-app/ecrans.py` du dépôt du site) : adresse de Miami, compteurs, deux derniers colis (avec le suivi du vendeur) ; la pré-alerte par le « + » orange |
+| `app/(onglets)/` | Accueil, Mes colis, Pré-alerte (bouton orange), Factures, Compte. L'accueil suit le téléphone du site (`outils/ecrans-app/ecrans.py` du dépôt du site) : adresse de Miami, compteurs, deux derniers colis **non livrés** (avec le suivi du vendeur) ; la pré-alerte par le « + » orange |
+| `app/historicite.jsx` | Compte > Historicité : tous les colis livrés du client, les plus récents d'abord, avec la date de livraison, une recherche et des pages de 20 |
 | `app/colis/[id].jsx` | Détail d'un colis et ses étapes (événements réels), disposé comme le téléphone du site |
 | `app/messages.jsx` | Les derniers messages reçus (e-mail, WhatsApp, notification), ouverts par la cloche de l'accueil |
 | `app/facture/[id].jsx` | Une facture : lignes, paiements reçus, total, payé, solde |
@@ -114,6 +115,8 @@ propre compte (`client_id`).
 |---|---|
 | Accueil (chiffres), messages de la cloche | `mon_resume()` — la même fonction que l'espace client du site |
 | Mes colis | table `colis` : pages de 20, filtres et recherche faits par la base |
+| Accueil (derniers mouvements) | table `colis`, filtre `actifs` (tous les statuts sauf `livre`), deux colis au plus : un colis livré n'y paraît jamais |
+| Compte > Historicité | table `colis` filtrée sur `livre`, avec l'étape « livré » (`colis_historique`, filtrée sur la table liée) pour la date de livraison ; pages de 20, recherche par la base |
 | Détail, étapes | `colis` + `colis_historique` (étapes publiques ; une étape corrigée disparaît) |
 | Suivi d'un numéro | son colis, sinon `suivre_colis()` (suivi public du site) |
 | Pré-alerte | `creer_prealerte()` (validation, doublons, clé d'envoi) ; liste : table `prealertes` |
@@ -216,7 +219,7 @@ Schéma `goshipexpress://` :
 | `goshipexpress://colis/<id>` | un de ses colis (sinon « introuvable ») |
 | `goshipexpress://suivi?numero=GSE-1001-HT` | suivi d'un numéro |
 | `goshipexpress://facture/<id>` | une de ses factures |
-| `goshipexpress://prealerte`, `…/colis`, `…/factures`, `…/compte`, `…/agences` | onglets |
+| `goshipexpress://prealerte`, `…/colis`, `…/factures`, `…/compte`, `…/agences`, `…/historicite` | onglets et écrans |
 
 Sans session, le lien mène à la connexion, puis à son écran. Les liens `https://` du site
 (Universal Links, App Links) ne sont **pas** branchés : le site est servi sous
@@ -284,7 +287,8 @@ npm run essai:web          # CHROMIUM=/chemin/de/chrome si besoin
 
 Comptes d'essai (base jetable uniquement) : `marie@exemple.com` / `marie-essai-1`,
 `jean@exemple.com` / `jean-essai-1`, `employe@goship.test` / `employe-essai-1`,
-`lea@exemple.com` / `lea-essai-1` (sans colis : `essai:web` la supprime).
+`lea@exemple.com` / `lea-essai-1` (sans colis : `essai:web` lui donne 22 colis livrés, vérifie l'accueil et
+l'historique, puis la supprime).
 
 GitHub Actions (`.github/workflows/mobile.yml`) lance tout cela à chaque changement et
 dépose les APK/AAB et l'application iOS dans l'onglet Actions (« Artifacts »).

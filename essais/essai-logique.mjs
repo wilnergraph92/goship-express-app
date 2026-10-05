@@ -231,5 +231,31 @@ console.log('H. Continuer avec Google (lib/connexion-sociale.js)');
     lire('app/connexion.jsx').includes('testID="connexion-google"'), lire('app/inscription.jsx').includes('testID="in-google"')], [true, true, true]);
 }
 
+console.log('I. L\'accueil sans colis livré, l\'historique (lib/api.js)');
+{
+  const F = vm.runInNewContext('(' + /export const FILTRES = (\{[\s\S]*?\n\});/.exec(lire('lib/api.js'))[1] + ')');
+  const STATUTS = ['recu', 'emballe', 'embarque', 'distribution', 'succursale', 'disponible', 'livre', 'incident'];
+  verifier('filtre « actifs » (accueil) : les huit statuts officiels sauf « livré »', F.actifs.slice().sort(), STATUTS.filter((x) => x !== 'livre').sort());
+  verifier('« actifs » et « livrés » se partagent les statuts : aucun oublié, aucun en double',
+    [...F.actifs, ...F.livres].sort(), STATUTS.slice().sort());
+  verifier('l\'accueil demande ses colis par ce filtre, l\'historique les livrés avec leur date de livraison',
+    [lire('app/(onglets)/index.jsx').includes("filtre: 'actifs'"),
+      lire('app/historicite.jsx').includes("filtre: 'livres'") && lire('app/historicite.jsx').includes('livraison: true')], [true, true]);
+  verifier('Compte a sa ligne « Historicité », l\'écran est dans la pile de navigation',
+    [lire('app/(onglets)/compte.jsx').includes("id=\"compte-historicite\""),
+      lire('app/_layout.jsx').includes('<Stack.Screen name="historicite" />')], [true, true]);
+  const source = lire('lib/api.js').replace(/^import .*$/gm, '');
+  const A = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+  const colis = { id: 'c1', numero: 'GSE-1001-HT', statut: 'livre' };
+  const livre = (c) => { const r = A.avecLivraison(c); return [r.livre_le, 'colis_historique' in r]; };
+  verifier('date de livraison : celle de l\'étape « livré », sans les étapes dans le colis',
+    livre({ ...colis, colis_historique: [{ statut: 'livre', cree_le: '2026-09-12T18:03:00+00:00' }] }), ['2026-09-12T18:03:00.000Z', false]);
+  verifier('plusieurs étapes « livré » (livré, corrigé, livré à nouveau) : la plus récente',
+    livre({ ...colis, colis_historique: [{ cree_le: '2026-09-12T18:03:00+00:00' }, { cree_le: '2026-09-20T09:00:00+00:00' }, { cree_le: '2026-09-15T12:00:00+00:00' }] })[0],
+    '2026-09-20T09:00:00.000Z');
+  verifier('aucune étape lisible : pas de date (l\'écran retombe sur « Mis à jour »)',
+    [livre({ ...colis, colis_historique: [] })[0], livre({ ...colis })[0], livre({ ...colis, colis_historique: [{ cree_le: 'pas une date' }] })[0]], [null, null, null]);
+}
+
 console.log(`${resultats.length} vérifications, ${resultats.filter(Boolean).length} réussies.`);
 process.exit(resultats.every(Boolean) ? 0 : 1);

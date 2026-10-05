@@ -109,6 +109,10 @@ async function main() {
   const tempsConnexion = Date.now() - t0;
 
   console.log('B. Accueil : les chiffres de la base');
+  // Un colis livré, mis à jour à l'instant : il ouvrirait la liste de l'accueil si l'accueil
+  // ne filtrait pas sur le statut
+  await sql("update colis set maj_le = now() where numero = 'GSE-1001-HT';");
+  const avantAccueil = requetes.length;
   await aller('/');
   t0 = Date.now();
   await visible('stat-en-cours-nombre', 15000);
@@ -125,6 +129,11 @@ async function main() {
     [await page.locator('[data-testid^="colis-GSE-"]').count(), await page.getByText(/^Mis à jour/).count()], [2, 0]);
   verifier('accueil : plus de bande « Annoncer un achat » (le « + » orange y mène)',
     await page.getByText('Annoncer un achat').count(), 0);
+  verifier('accueil : aucun colis livré, même mis à jour à l\'instant',
+    [await page.locator('[data-testid="colis-GSE-1001-HT"]').count(), await page.getByText('Livré', { exact: true }).count()], [0, 0]);
+  verifier('accueil : la base filtre (statuts en cours, deux colis au plus)',
+    requetes.slice(avantAccueil).map(decodeURIComponent).some((r) => r.includes('/colis?') && /[?&]limit=2\b/.test(r)
+      && /statut=in\.\(recu,emballe,embarque,distribution,succursale,disponible,incident\)/.test(r)), true);
   const suivis = await page.locator('[data-testid^="suivi-GSE-"]').allTextContents();
   verifier('cartes de l\'accueil : le suivi du vendeur de chaque colis',
     suivis.length === 2 && suivis.every((x) => /^Suivi vendeur : TBAMARIE\d{4}$/.test(x.trim())), true);
@@ -188,6 +197,34 @@ async function main() {
   await attendre(1200);
   verifier('aucun colis de Jean dans la liste', await page.locator('[data-testid="colis-GSE-1026-HT"]').count(), 0);
   await capture('03-colis');
+
+  console.log('C bis. Historicité : les colis livrés, dans Compte');
+  const livresVus = () => page.locator('[data-testid="historicite-liste"] [data-testid^="colis-GSE-"]')
+    .evaluateAll((els) => els.map((e) => e.dataset.testid.slice(6)));
+  const avantHistorique = requetes.length;
+  await onglet('compte');
+  await visible('compte-historicite', 8000);
+  await capture('03a-compte');
+  await id('compte-historicite').click();
+  await visible('historicite-liste', 15000);
+  await attendre(800);
+  verifier('historicité : les colis livrés de Marie, et eux seuls', [await livresVus(), await texte('historicite-total')], [['GSE-1001-HT'], '1']);
+  const livraisonMarie = await sql("select to_char(cree_le at time zone 'America/Santo_Domingo', 'DD/MM/YYYY') from colis_historique "
+    + "where colis_id = (select id from colis where numero = 'GSE-1001-HT') and statut = 'livre' order by cree_le desc limit 1;");
+  verifier('la carte dit « Livré le » et la date de la livraison, pas celle de la dernière mise à jour',
+    await page.locator('[data-testid="historicite-liste"] [data-testid="date-GSE-1001-HT"]').textContent(), 'Livré le ' + livraisonMarie);
+  verifier('la base filtre (livré, et seulement l\'étape « livré » de chaque colis)',
+    requetes.slice(avantHistorique).map(decodeURIComponent).some((r) => r.includes('/colis?') && r.includes('statut=in.(livre)')
+      && r.includes('colis_historique.statut=eq.livre')), true);
+  await capture('03b-historicite');
+  await id('historicite-recherche').fill('Marie 02');
+  await attendre(1500);
+  verifier('recherche d\'un colis pas encore livré : aucun résultat', [await livresVus(), await visible('historicite-aucun-resultat', 3000)], [[], true]);
+  await id('historicite-recherche').fill('Marie 01');
+  await attendre(1500);
+  verifier('recherche d\'un colis livré : il est là', await livresVus(), ['GSE-1001-HT']);
+  await id('retour').last().click();
+  verifier('retour : on revient à Compte', await visible('compte-historicite', 5000), true);
 
   console.log('D. Détail et étapes (événements réels)');
   const etapes = async () => page.locator('[data-testid="etape"]').allTextContents();
@@ -415,8 +452,37 @@ async function main() {
     'Marie-Ange Dorvil|true');
   await id('compte-deconnexion').click();
   await id('compte-deconnexion-oui').click();
+  // Léa n'a que des colis livrés (22 : plus d'une page). Insérés directement, triggers coupés :
+  // le statut initial d'un colis est « reçu », seul un événement le fait avancer
+  await sql("set session_replication_role = replica; "
+    + "insert into colis (client_id, numero, description, poids_lb, service, pays_destination, destination, statut, prix_usd, tarif_lb_usd, "
+    + "suivi_transporteur, expediteur, maj_le) select 'eeeeeeee-0000-0000-0000-00000000000e', 'GSE-8' || lpad(g::text, 3, '0') || '-HT', "
+    + "'Livré de Léa ' || g, 1, 'aerien', 'HT', 'Pétion-Ville', 'livre', 5, 5, 'TBALEA' || lpad(g::text, 4, '0'), 'Amazon', "
+    + "now() - (g || ' hours')::interval from generate_series(1, 22) g; "
+    + "insert into colis_historique (colis_id, statut, lieu, note, type_evenement, cree_le) select id, 'livre', '', '', 'COLIS_LIVRE', maj_le "
+    + "from colis where client_id = 'eeeeeeee-0000-0000-0000-00000000000e';");
   await seConnecter('lea@exemple.com', 'lea-essai-1');
   await visible('stat-en-cours-nombre', 15000);
+  await onglet('index');   // l'onglet Compte de la session d'avant peut rester au premier plan
+  verifier('Léa, que des colis livrés : « Aucun colis en cours » (pas « Aucun colis »), aucune carte',
+    [await visible('accueil-rien-en-cours', 8000), await page.getByText('Aucun colis pour l’instant').count(),
+      await page.locator('[data-testid^="colis-GSE-"]').count()], [true, 0, 0]);
+  await capture('10-accueil-sans-colis-en-cours');
+  await id('accueil-historicite').click();
+  await visible('historicite-liste', 15000);
+  await attendre(800);
+  verifier('historicité de Léa : 22 colis livrés au total, une page de 20 demandée',
+    [await texte('historicite-total'), requetes.filter((r) => /\/colis\?/.test(r) && /[?&]offset=0\b/.test(r) && /[?&]limit=20\b/.test(r)
+      && decodeURIComponent(r).includes('colis_historique.statut=eq.livre')).length > 0], ['22', true]);
+  for (let i = 0; i < 8 && (await livresVus()).length < 22; i += 1) {
+    await page.locator('[data-testid="historicite-liste"] [data-testid^="colis-GSE-"]').last().scrollIntoViewIfNeeded();
+    await page.mouse.wheel(0, 3000);
+    await attendre(700);
+  }
+  const tousLivres = await livresVus();
+  verifier('page suivante au défilement : les 22, tous livrés, sans doublon',
+    [tousLivres.length, new Set(tousLivres).size, tousLivres.every((n) => /^GSE-8\d{3}-HT$/.test(n))], [22, 22, true]);
+  await id('retour').last().click();
   await onglet('compte');
   await id('compte-supprimer').click();
   await id('compte-supprimer-oui').click();

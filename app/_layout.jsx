@@ -32,7 +32,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const PUBLICS = ['connexion', 'inscription'];
 // Écrans où un lien peut mener après la connexion
-const DESTINATION = /^\/(colis\/[0-9a-f-]{36}|suivi|facture\/[0-9a-f-]{36}|agences|colis|factures|prealerte|compte)$/i;
+const DESTINATION = /^\/(colis\/[0-9a-f-]{36}|suivi|facture\/[0-9a-f-]{36}|agences|historicite|colis|factures|prealerte|compte)$/i;
 
 function Aiguillage() {
   const { pret, connecte } = useSession();
@@ -73,6 +73,7 @@ function Aiguillage() {
       <Stack.Screen name="facture/[id]" />
       <Stack.Screen name="suivi" />
       <Stack.Screen name="agences" />
+      <Stack.Screen name="historicite" />
       <Stack.Screen name="messages" />
       <Stack.Screen name="profil" />
       <Stack.Screen name="paiement" />
