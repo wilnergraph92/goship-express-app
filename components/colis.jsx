@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { couleurs, polices, rayons, ombres, STATUTS, ETAPES } from '../lib/theme';
 import { Texte, Mono } from './ui';
 import { useLangue } from '../lib/i18n';
-import { dateRelative, libelleStatut, libelleService, poids, etapeDe } from '../lib/format';
+import { dateCourte, dateRelative, libelleStatut, libelleService, poids, etapeDe } from '../lib/format';
 
 export function PuceStatut({ statut, style }) {
   const { t, langue } = useLangue();
@@ -63,7 +63,8 @@ export function FriseLegendee({ statut, historique }) {
 // calculé de la carte (fond blanc, bord, ombre, marges), et la carte n'en avait plus.
 // sansDate : l'accueil, comme le téléphone du site, n'écrit pas « Mis à jour … ».
 // Le numéro de suivi du vendeur (Amazon, SHEIN…) s'affiche quand le colis en a un :
-// c'est celui que le client connaît.
+// c'est celui que le client connaît. Un colis qui porte sa date de livraison (livre_le,
+// l'historique) dit « Livré le … » à la place de « Mis à jour … ».
 export const CarteColis = memo(function CarteColis({ colis, sansDate }) {
   const { t, langue } = useLangue();
   const details = [colis.expediteur, poids(colis.poids_lb, langue), libelleService(colis.service, langue)]
@@ -96,8 +97,10 @@ export const CarteColis = memo(function CarteColis({ colis, sansDate }) {
         <Frise statut={colis.statut} />
       </View>
       {sansDate ? null : (
-        <Texte doux taille={11.5} style={{ marginTop: 9, color: couleurs.texteFaible }}>
-          {t('co.maj')} {dateRelative(colis.maj_le, langue, true)}
+        <Texte doux taille={11.5} style={{ marginTop: 9, color: couleurs.texteFaible }} testID={'date-' + colis.numero}>
+          {colis.livre_le
+            ? `${t('co.livre_le')} ${dateCourte(colis.livre_le, langue)}`
+            : `${t('co.maj')} ${dateRelative(colis.maj_le, langue, true)}`}
         </Texte>
       )}
     </Pressable>

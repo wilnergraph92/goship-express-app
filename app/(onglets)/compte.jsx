@@ -1,4 +1,5 @@
-// Mon compte : code client, réglages, langue, notifications, aide, réseaux sociaux et déconnexion.
+// Mon compte : code client, historicité (les colis livrés), réglages, langue, notifications,
+// aide, réseaux sociaux et déconnexion.
 
 import { useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Pressable, Linking, ActivityIndicator, StyleSheet } from 'react-native';
@@ -151,6 +152,7 @@ export default function Compte() {
               </Pressable>
             </View>
           ) : null}
+          <Ligne icone="clock" titre={t('hi.titre')} onPress={() => router.push('/historicite')} id="compte-historicite" />
           <Ligne icone="bell" titre={t('cp.notifications')} valeur={t('cp.notif.' + notif)} onPress={notifications} id="compte-notifications" />
           <Ligne icone="globe" titre={t('cp.langue')} valeur={LANGUES.find((l) => l.code === langue)?.nom} onPress={() => setChoixLangue((v) => !v)} ouvert={choixLangue} />
           {choixLangue ? (

@@ -7,6 +7,10 @@
 // Tous les chiffres viennent de la base (mon_resume, la même fonction que l'espace
 // client du site) : l'application ne compte ni n'additionne rien elle-même. Tirer
 // l'écran vers le bas recharge tout.
+//
+// L'accueil ne montre jamais un colis livré : ses derniers mouvements sont ceux des colis
+// qui ne sont pas encore arrivés au client. Les colis livrés sont dans Compte >
+// Historicité (app/historicite.jsx) et sous « Livrés » dans Mes colis.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Image, Pressable, RefreshControl, Share, StyleSheet } from 'react-native';
@@ -60,9 +64,10 @@ export default function Accueil() {
   const [copie, setCopie] = useState(false);
   const premier = useRef(true);
 
-  // Deux derniers colis, comme le téléphone du site ; « Tout voir » mène aux autres
+  // Deux derniers colis, comme le téléphone du site ; « Tout voir » mène aux autres.
+  // Pas un colis livré : le filtre est celui de la base (voir FILTRES.actifs).
   const { donnees, erreur, recharger, rafraichit, tirer, chargement } = useDonnees(async () => {
-    const [resume, derniers] = await Promise.all([monResume(), mesColis({ parPage: 2 })]);
+    const [resume, derniers] = await Promise.all([monResume(), mesColis({ parPage: 2, filtre: 'actifs' })]);
     return { resume, derniers: derniers.lignes };
   }, []);
 
@@ -199,7 +204,15 @@ export default function Accueil() {
               </Pressable>
             </View>
             {donnees.derniers.length === 0 ? (
-              <Vide titre={t('co.vide')} texte={t('co.vide_texte')} />
+              // Que des colis livrés : ce n'est pas « aucun colis », ils sont dans l'historique
+              c.livres > 0 ? (
+                <Vide titre={t('ac.rien_en_cours')} texte={t('ac.rien_en_cours_texte')} testID="accueil-rien-en-cours">
+                  <Bouton titre={t('hi.titre')} icone="clock" variante="secondaire" onPress={() => router.push('/historicite')}
+                    style={{ minHeight: 46 }} testID="accueil-historicite" />
+                </Vide>
+              ) : (
+                <Vide titre={t('co.vide')} texte={t('co.vide_texte')} />
+              )
             ) : (
               <View style={{ gap: 11, marginHorizontal: 18, marginTop: 11 }}>
                 {donnees.derniers.map((x) => <CarteColis key={x.id} colis={x} sansDate />)}
