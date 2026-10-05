@@ -349,7 +349,8 @@ Apple) : elle prouve que le projet compile pour iPhone, elle ne s'installe pas.
   construction `preview` le téléchargent à l'ouverture et l'appliquent à l'ouverture
   suivante (au plus deux ouvertures, application fermée entre les deux). L'écran Compte
   affiche alors « mise à jour du 30/09 17:40 » à côté de la version. Le canal
-  `production` (boutiques) ne reçoit rien automatiquement.
+  `production` (Google Play) ne reçoit rien automatiquement : on l'y publie à la main,
+  depuis `main`, après l'essai sur l'APK (même workflow, Run workflow, canal production).
 - **Ce qui passe par une mise à jour** : écrans, textes, couleurs, traductions, images,
   corrections dans le code JavaScript. **Ce qui demande une construction** : un module
   natif ajouté, une permission, l'icône, l'écran de démarrage, le nom, une version
@@ -359,6 +360,8 @@ Apple) : elle prouve que le projet compile pour iPhone, elle ne s'installe pas.
   n'a pas le code natif qu'elle attend.
 - **Nouvelle version des boutiques** : nouvelle version dans `app.json`,
   `eas build --profile production`, `eas submit`.
+- **Google Play** : la marche à suivre complète (fiche, images, formulaires, test fermé)
+  est dans [`boutique/play/README.md`](boutique/play/README.md).
 - **Base d'abord** : une migration nécessaire à la nouvelle version s'exécute avant de
   publier l'application ; elle doit rester compatible avec la version précédente (les
   migrations du site n'ajoutent jamais rien de destructif ; `supabase-mobile.sql` garde
@@ -392,13 +395,12 @@ avec cette liste.
 
 ## Ce qui manque avant la publication
 
-- Comptes Google Play Console et Apple Developer ; clés FCM et APNs.
-- Essais sur un vrai Android et un vrai iPhone (caméra sur de vrais codes, notifications,
-  liens, performances) : la CI n'a qu'un émulateur et un simulateur.
+- Compte Apple Developer et clé APNs (le compte Google Play existe, la clé FCM est posée).
+- Essais sur un vrai iPhone ; sur Android, la version installée depuis le Play Store
+  (caméra sur de vrais codes, notifications, Google).
 - Contenu : adresses et horaires des agences de Port-au-Prince et Santo Domingo, moyens
-  de paiement (banque, Azul, MonCash, NatCash) dans `config.js` ; captures d'écran,
-  description, catégorie, adresse de support et politique de confidentialité pour les
-  boutiques.
+  de paiement (banque, Azul, MonCash, NatCash) dans `config.js`. La fiche Google Play
+  (textes, captures, bannière, formulaires) est prête dans `boutique/play/`.
 - `outils/supabase-mobile.sql` et `outils/supabase-compte.sql` exécutés dans Supabase.
 
 ## Dépannage
