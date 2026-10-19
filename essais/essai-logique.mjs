@@ -307,5 +307,37 @@ console.log('J. L\'adresse en Floride et la date de naissance (lib/adresse.js, l
     [lire('lib/session.js').includes('date_naissance: champs.date_naissance'), lire('app/inscription.jsx').includes('if (!n.valide) e.naissance')], [true, true]);
 }
 
+console.log('K. Les programmes : GOPOINTS, bienvenue, parrainage (lib/programmes.js, app/avantages.jsx)');
+{
+  const PR = await module_('lib/programmes.js');
+  verifier('un code saisi : majuscules, sans espaces, 24 signes au plus',
+    [PR.normaliserCodeParrain(' gs ab c 123 '), PR.normaliserCodeParrain('a'.repeat(40)).length, PR.normaliserCodeParrain(null)], ['GSABC123', 24, '']);
+  verifier('le code d\'un lien d\'invitation', [PR.codeDuLien('https://x.net/inscription.html?parrain=gsabc123'), PR.codeDuLien('https://x.net/?a=1&parrain=GSZZ9988'), PR.codeDuLien('https://x.net/'), PR.codeDuLien('?parrain=ab')],
+    ['GSABC123', 'GSZZ9988', '', '']);
+  verifier('le message d\'invitation : code et lien, ou le code seul sans lien',
+    [PR.messageInvitation('Rejoins-moi avec mon code {code} : {lien}', 'GSABC123', 'https://x.net/i?parrain=GSABC123'), PR.messageInvitation('Rejoins-moi avec mon code {code} : {lien}', 'GSABC123', '')],
+    ['Rejoins-moi avec mon code GSABC123 : https://x.net/i?parrain=GSABC123', 'Rejoins-moi avec mon code GSABC123']);
+  const i18n = lire('lib/i18n.js');
+  const cles = [...new Set([...i18n.matchAll(/^  '((?:av|err\.(?:OFFER|INSUFFICIENT|DUPLICATE|INVALID_REFERRAL|SELF|ALREADY|REFERRAL))[\w.]*)': \{/gm)].map((m) => m[1]))];
+  const complet = cles.filter((c) => {
+    const bloc = new RegExp(`'${c.replace(/\./g, '\\.')}': \\{([\\s\\S]*?)\\n  \\},`).exec(i18n);
+    return bloc && ['fr', 'en', 'es', 'ht'].every((l) => new RegExp(`\\n    ${l}: '`).test(bloc[1]) || new RegExp(`\\n    ${l}: "`).test(bloc[1]));
+  });
+  verifier('tous les textes des programmes existent en quatre langues (' + cles.length + ')', complet.length === cles.length && cles.length > 60, true);
+  verifier('le texte marketing créole est celui fourni, et la CTA du parrainage aussi',
+    [i18n.includes("Envite yon zanmi dekouvri GoShip Express. Lè zanmi ou a kreye kont li epi li fè premye tranzaksyon kalifye li, nou ka rekonpanse nou toulede selon kondisyon pwogram nan."),
+     /'av\.refer\.cta': \{[^}]*ht: 'ENVITE YON ZANMI'/s.test(i18n)], [true, true]);
+  verifier('chaque code métier des programmes est connu de l\'application et traduit',
+    ['OFFER_UNAVAILABLE', 'OFFER_OUT_OF_STOCK', 'OFFER_LIMIT_REACHED', 'INSUFFICIENT_POINTS', 'DUPLICATE_OPERATION', 'INVALID_REFERRAL_CODE', 'SELF_REFERRAL', 'ALREADY_REFERRED', 'REFERRAL_INACTIVE', 'REFERRAL_TOO_LATE', 'REFERRAL_CYCLE']
+      .every((c) => lire('lib/erreurs.js').includes(`'${c}'`) && i18n.includes(`'err.${c}'`)), true);
+  verifier('l\'écran est dans la pile, dans Compte, et la saisie du code est à l\'inscription',
+    [lire('app/_layout.jsx').includes('<Stack.Screen name="avantages" />'), lire('app/(onglets)/compte.jsx').includes('id="compte-avantages"'),
+     lire('app/inscription.jsx').includes('testID="in-parrain"'), lire('lib/session.js').includes('code_parrainage:')], [true, true, true, true]);
+  verifier('l\'application n\'écrit ni ne calcule aucun avantage : seulement des fonctions de la base',
+    ['mon_portefeuille', 'ma_bienvenue', 'mon_parrainage', 'utiliser_points', 'noter_invitation', 'utiliser_code_parrainage', 'regler_ma_preference_anniversaire']
+      .every((f) => lire('lib/api.js').includes(`'${f}'`)) && !/from\('(points_|recompenses|parrainages|codes_parrainage)/.test(lire('lib/api.js') + lire('app/avantages.jsx')), true);
+  verifier('un échange envoie une clé par appui (un double appui ne dépense qu\'une fois)', lire('app/avantages.jsx').includes('nouvelleCle()'), true);
+}
+
 console.log(`${resultats.length} vérifications, ${resultats.filter(Boolean).length} réussies.`);
 process.exit(resultats.every(Boolean) ? 0 : 1);

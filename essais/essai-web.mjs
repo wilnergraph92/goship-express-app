@@ -657,6 +657,40 @@ async function main() {
   await id('adresse-copier-phone').click();
   verifier('le téléphone se copie', await page.evaluate(() => navigator.clipboard.readText()), '786 525-2944');
 
+  console.log('N. Mes avantages : GOPOINTS, bienvenue, parrainage (programmes réglés par SQL, comme le ferait l\'équipe)');
+  await aller('/avantages');
+  verifier('programmes éteints : seule la préférence d\'anniversaire est proposée, rien n\'est promis',
+    [await visible('av-anniversaire', 15000), await id('av-points').count(), await id('av-bienvenue').count(), await id('av-parrainage').count()], [true, 0, 0, 0]);
+  await sql("update points_reglages set actif = true; "
+    + "update points_regles set points = 50, actif = true where evenement = 'campaign'; "
+    + "insert into points_offres (nom, cout_points, type, valeur, actif, stock) values ('Crédit d''essai', 30, 'credit_expedition', 5, true, 1); "
+    + "select public.points_ecrire('" + MARIE + "', 'gain', 50, 'campaign', 'essai-e2e', 'gain:e2e:1');"
+    + "insert into campagnes_bienvenue (nom, description, statut, debut, fin, type_recompense, valeur_recompense, operation, conditions) "
+    + "values ('Bienvenue d''essai', 'Un bonus pour votre première opération.', 'active', current_date - 400, current_date + 30, 'bonus_fixe', 7, 'colis_recu', 'Un bonus par client, une seule fois.');"
+    + "update parrainage_config set statut = 'active', debut = current_date - 1, fin = current_date + 60, parrain_type = 'bonus_fixe', parrain_valeur = 10, "
+    + "filleul_type = 'credit_expedition', filleul_valeur = 5, operation = 'colis_recu', conditions = 'Conditions d''essai de parrainage.', annulation = 'Annulé si l''opération est annulée.';");
+  await aller('/avantages');
+  verifier('le solde vient de la base : 50 points', await visible('av-solde', 15000) && (await texte('av-solde')).startsWith('50'), true);
+  verifier('la carte de bienvenue : l\'avantage décrit (7,00 $), dans la langue du compte', await visible('av-bienvenue') && /7[.,]00/.test(await texte('av-bienvenue')), true);
+  verifier('le parrainage : code unique à 8 signes et « ENVITE YON ZANMI » en créole (la langue choisie plus haut)',
+    [/^GS[A-HJKMNP-Z2-9]{6}$/.test((await texte('av-code')).trim()), (await texte('av-partager')).trim()], [true, 'ENVITE YON ZANMI']);
+  const codeMarie = (await texte('av-code')).trim();
+  await id('av-copier-code').click();
+  verifier('copier le code : le presse-papiers le contient', await page.evaluate(() => navigator.clipboard.readText()), codeMarie);
+  verifier('la base a compté l\'invitation', await sql("select count(*) from parrainage_invitations where parrain_id = '" + MARIE + "';"), '1');
+  const offre = await sql("select id from points_offres where nom = 'Crédit d''essai';");
+  await id('av-echanger-' + offre.trim()).click();
+  await visible('av-message', 10000);
+  await page.waitForFunction(() => /^20/.test((document.querySelector('[data-testid="av-solde"]') || {}).textContent || ''), null, { timeout: 10000 }).catch(() => {});
+  verifier('échange : 20 points restent, une seule ligne d\'utilisation, un avantage enregistré',
+    [(await texte('av-solde')).startsWith('20'), await sql("select count(*) from points_mouvements where client_id = '" + MARIE + "' and type = 'utilisation';"),
+     await sql("select count(*) from recompenses where client_id = '" + MARIE + "' and programme = 'points';")], [true, '1', '1']);
+  const refus = await controle('sql', { requete: "set role authenticated; set request.jwt.claims = '{\"sub\":\"" + MARIE + "\"}'; select public.utiliser_code_parrainage(upper('" + codeMarie + "'));" });
+  verifier('son propre code est refusé par la base (jamais par l\'écran)', /SELF_REFERRAL/.test(String(refus.sortie)), true);
+  verifier('aucune écriture directe : les tables des programmes sont fermées au client',
+    await sql("set role authenticated; set request.jwt.claims = '{\"sub\":\"" + MARIE + "\"}'; select count(*) from points_mouvements;").then((x) => String(x), (e) => String(e)).then((x) => /permission denied|erreur/i.test(x)), true);
+  await capture('14-avantages');
+
   console.log('L. Accessibilité et chiffres');
   const sansNom = await page.evaluate(() => [...document.querySelectorAll('[role="button"],[role="tab"],button')]
     .filter((b) => b.offsetParent && !(b.getAttribute('aria-label') || b.textContent.trim())).length);

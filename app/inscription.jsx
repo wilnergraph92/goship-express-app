@@ -12,6 +12,7 @@ import { useSession, MDP_MINIMUM, emailValide } from '../lib/session';
 import { classer } from '../lib/erreurs';
 import { lireNaissance, MESSAGE_NAISSANCE } from '../lib/naissance';
 import BoutonGoogle from '../components/BoutonGoogle';
+import { normaliserCodeParrain } from '../lib/programmes';
 
 const PAYS = [
   { code: 'HT', cle: 'pays.HT' },
@@ -24,7 +25,7 @@ export default function Inscription() {
   const { inscription, fournisseurs, connexionAvec } = useSession();
 
   const [champs, setChamps] = useState({
-    nom_complet: '', email: '', motDePasse: '', telephone: '', pays: 'HT', ville: '',
+    nom_complet: '', email: '', motDePasse: '', telephone: '', pays: 'HT', ville: '', code_parrainage: '',
   });
   const [naissance, setNaissance] = useState({ jour: '', mois: '', annee: '' });
   const [erreurs, setErreurs] = useState({});
@@ -118,6 +119,9 @@ export default function Inscription() {
           keyboardType="email-address" inputMode="email" autoComplete="email" erreur={erreurs.email} maxLength={160} testID="in-email" />
         <Champ etiquette={t('cx.motdepasse')} value={champs.motDePasse} onChangeText={poser('motDePasse')} secureTextEntry
           autoCapitalize="none" autoComplete="new-password" textContentType="newPassword" erreur={erreurs.motDePasse} testID="in-mdp" />
+        <Champ etiquette={t('in.parrain')} value={champs.code_parrainage} onChangeText={(v) => poser('code_parrainage')(normaliserCodeParrain(v))}
+          autoCapitalize="characters" autoCorrect={false} maxLength={24} testID="in-parrain" />
+        <Texte doux taille={12.5} style={{ marginTop: -6 }}>{t('in.parrain_aide')}</Texte>
         <Champ etiquette={t('in.telephone')} value={champs.telephone} onChangeText={poser('telephone')} keyboardType="phone-pad"
           autoComplete="tel" maxLength={40} testID="in-telephone" />
 
