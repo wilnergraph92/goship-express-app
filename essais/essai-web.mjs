@@ -573,10 +573,11 @@ async function main() {
   await onglet('compte');
   await id('compte-deconnexion').click();
   await id('compte-deconnexion-oui').click();
-  // L'écran de connexion d'avant la création du compte reste dans la pile : on prend le dernier
-  await id('connexion-email').last().fill('rose@exemple.com');
-  await id('connexion-mdp').last().fill('secret-rose-1');
-  await id('connexion-entrer').last().click();
+  // L'écran de connexion d'avant la création du compte reste dans la pile, caché : on prend celui qu'on voit
+  const visibles = (testid) => page.locator(`[data-testid="${testid}"]:visible`);
+  await visibles('connexion-email').fill('rose@exemple.com');
+  await visibles('connexion-mdp').fill('secret-rose-1');
+  await visibles('connexion-entrer').click();
   verifier('profil incomplet : « Mes informations » s\'ouvre de lui-même, avec le nom',
     [await visible('pf-enregistrer', 20000), await id('pf-nom').inputValue()], [true, 'Rose Nouvelle']);
   // Refermé sans rien remplir : l'accueil, son code, la carte ; et la base refuse les pré-alertes
