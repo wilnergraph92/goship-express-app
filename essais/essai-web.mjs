@@ -59,7 +59,8 @@ async function main() {
 
   const serveur = await demarrer(path.join(ICI, '..', 'dist-essai'), 8082);
   const navigateur = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--no-proxy-server'] });
-  const contexte = await navigateur.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR', timezoneId: 'America/Santo_Domingo' });
+  const contexte = await navigateur.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR', timezoneId: 'America/Santo_Domingo',
+    permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await contexte.newPage();
 
   const production = [];
@@ -516,6 +517,21 @@ async function main() {
   await id('in-mdp').fill('123');
   await id('in-creer').click();
   verifier('inscription : e-mail et mot de passe invalides refusés', [await visible('in-email-erreur', 3000), await visible('in-mdp-erreur', 1000)], [true, true]);
+  verifier('inscription : sans date de naissance, refusée avec son message',
+    [await visible('in-naissance-erreur', 1000), await texte('in-naissance-erreur')], [true, 'Indiquez votre date de naissance.']);
+  await id('in-naissance-jour').fill('01');
+  await id('in-naissance-mois').fill('01');
+  await id('in-naissance-annee').fill('2999');
+  await id('in-creer').click();
+  verifier('inscription : une date future est refusée', await texte('in-naissance-erreur'), 'La date de naissance ne peut pas être dans le futur.');
+  await id('in-naissance-jour').fill('30');
+  await id('in-naissance-mois').fill('02');
+  await id('in-naissance-annee').fill('1990');
+  await id('in-creer').click();
+  verifier('inscription : le 30 février est refusé', (await texte('in-naissance-erreur')).startsWith('Cette date de naissance n\'est pas valide'), true);
+  await id('in-naissance-jour').fill('15');
+  await id('in-naissance-mois').fill('03');
+  await id('in-naissance-annee').fill('1990');
   await id('in-email').fill('marie@exemple.com');
   await id('in-mdp').fill('secret-rose-1');
   await id('in-creer').click();
@@ -527,6 +543,8 @@ async function main() {
   verifier('profil incomplet : « Mes informations » s\'ouvre de lui-même, avec le nom',
     [await visible('pf-enregistrer', 15000), await id('pf-nom').inputValue()], [true, 'Rose Nouvelle']);
   verifier('la base a créé le client', await sql("select count(*) from clients where email = 'rose@exemple.com';"), '1');
+  verifier('… et gardé sa date de naissance, à part des clients, jour pour jour',
+    await sql("select n.date_naissance::text from profils_naissance n join clients c on c.id = n.client_id where c.email = 'rose@exemple.com';"), '1990-03-15');
   // Refermé sans rien remplir : l'accueil, son code, la carte ; et la base refuse les pré-alertes
   await id('retour').last().click();
   await onglet('index');   // l'onglet Compte de la session d'avant peut rester au premier plan
@@ -583,6 +601,61 @@ async function main() {
   await page.reload();
   await id('onglet-index').waitFor();
   verifier('la langue choisie reste après relance', await texte('onglet-index'), 'Akèy');
+
+  console.log('M. Mon adresse aux États-Unis, la date de naissance à compléter');
+  await aller('/adresse');
+  verifier('l\'écran « Mon adresse » s\'ouvre avec ses champs', await visible('adresse-champs', 15000), true);
+  // Le profil se lit après l'ouverture de l'écran : « — » tant que le nom n'est pas arrivé
+  for (let i = 0; i < 40 && (await texte('adresse-name')) === '—'; i++) await attendre(250);
+  const nomRose = await texte('adresse-name');
+  verifier('Name = le nom et le code du compte connecté', /^Rose Nouvelle GSE-\d{4,}$/.test(nomRose), true);
+  verifier('les sept autres champs sont exactement ceux de Goship Express',
+    [await texte('adresse-address1'), await texte('adresse-address2'), await texte('adresse-city'), await texte('adresse-state'),
+      await texte('adresse-zip'), await texte('adresse-country'), await texte('adresse-phone')],
+    ['8140 NW 74th Ave Unit 3', 'ABX-46780', 'Medley', 'Florida', '33166', 'United States', '786 525-2944']);
+  await id('adresse-copier-tout').click();
+  verifier('« Copier l\'adresse complète » : confirmation affichée', await visible('adresse-confirmation', 3000), true);
+  verifier('le presse-papiers contient l\'adresse complète', await page.evaluate(() => navigator.clipboard.readText()),
+    [nomRose, '8140 NW 74th Ave Unit 3', 'ABX-46780', 'Medley, Florida 33166', 'United States', '786 525-2944'].join('\n'));
+  await id('adresse-copier-city').click();
+  verifier('un champ se copie seul', await page.evaluate(() => navigator.clipboard.readText()), 'Medley');
+  await id('adresse-copier-zip').click();
+  verifier('… et le suivant aussi', await page.evaluate(() => navigator.clipboard.readText()), '33166');
+  await capture('13-adresse');
+
+  await aller('/');
+  await visible('accueil-code', 15000);
+  await onglet('compte');
+  await id('compte-deconnexion').click();
+  await id('compte-deconnexion-oui').click();
+  await visible('connexion-email');
+  await seConnecter('marie@exemple.com', 'marie-essai-1');
+  await visible('onglet-index', 15000);
+  await onglet('index');   // l'onglet Compte de la session d'avant peut rester au premier plan
+  verifier('Marie (compte d\'avant, sans date) : son accueil lui demande sa date de naissance, sans rien bloquer',
+    [await visible('accueil-naissance', 15000), await visible('accueil-adresse')], [true, true]);
+  verifier('… et son adresse porte SON nom, pas celui de Rose', (await texte('accueil-adresse')).startsWith('Marie-Ange Dorvil · GSE-'), true);
+  await id('accueil-naissance').click();
+  await id('pf-naissance-jour').fill('31');
+  await id('pf-naissance-mois').fill('04');
+  await id('pf-naissance-annee').fill('1985');
+  await id('pf-enregistrer').click();
+  verifier('un 31 avril est refusé, avec son message', await visible('pf-naissance-erreur', 5000)
+    && (await texte('pf-naissance-erreur')).startsWith('Dat nesans sa a pa valab'), true);   // la langue choisie plus haut : créole
+  await id('pf-naissance-jour').fill('15');
+  await id('pf-naissance-mois').fill('03');
+  await id('pf-enregistrer').click();
+  await visible('accueil-code', 15000);
+  verifier('la date est enregistrée par la base, jour pour jour',
+    await sql("select date_naissance::text from profils_naissance where client_id = '" + MARIE + "';"), '1985-03-15');
+  await page.reload();
+  await visible('accueil-code', 15000);
+  verifier('plus de carte « date de naissance » après rechargement', await id('accueil-naissance').count(), 0);
+  await id('accueil-champs').click();
+  verifier('depuis l\'accueil : « Copier champ par champ » mène à l\'écran', await visible('adresse-champs'), true);
+  verifier('Marie voit son nom et son code', (await texte('adresse-name')).startsWith('Marie-Ange Dorvil GSE-'), true);
+  await id('adresse-copier-phone').click();
+  verifier('le téléphone se copie', await page.evaluate(() => navigator.clipboard.readText()), '786 525-2944');
 
   console.log('L. Accessibilité et chiffres');
   const sansNom = await page.evaluate(() => [...document.querySelectorAll('[role="button"],[role="tab"],button')]

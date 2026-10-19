@@ -25,29 +25,20 @@ import { CarteColis } from '../../components/colis';
 import { useLangue } from '../../lib/i18n';
 import { useSession } from '../../lib/session';
 import { useDonnees } from '../../lib/useDonnees';
-import { mesColis, monResume, surveiller } from '../../lib/api';
+import { mesColis, monResume, surveiller, maNaissance } from '../../lib/api';
+import { adresseTexte, adressePrete, nomEtCode } from '../../lib/adresse';
 import { profilIncomplet } from '../../lib/connexion-sociale';
 
-function adresseComplete(profil) {
-  const a = config.adresseMiami;
-  return [
-    [profil?.nom_complet || '', profil?.code || ''].filter(Boolean).join(' '),
-    a.ligne1,
-    a.ligne2,
-    a.ligne3,
-    a.pays,
-  ].filter(Boolean).join('\n');
-}
-
-// À l'écran, trois lignes comme le téléphone du site : « nom · code », la rue et
-// l'appartement, la ville et le pays. Copier et Partager donnent l'adresse ligne par
-// ligne (adresseComplete), telle qu'un formulaire de livraison la demande.
+// À l'écran, trois lignes comme le téléphone du site : « nom · code », la rue et la
+// référence, la ville et le pays. Copier et Partager donnent l'adresse complète, ligne par
+// ligne (lib/adresse.js), telle qu'un formulaire de livraison la demande ; l'écran « Mon
+// adresse » copie chaque champ à part. Sans nom ou sans code, rien n'est composé.
 function adresseAffichee(profil) {
   const a = config.adresseMiami;
   return [
-    [profil?.nom_complet || '', profil?.code || ''].filter(Boolean).join(' · '),
+    nomEtCode(profil)?.replace(/ (\S+)$/, ' · $1') || '',
     [a.ligne1, a.ligne2].filter(Boolean).join(' — '),
-    [a.ligne3, a.pays].filter(Boolean).join(', '),
+    [`${a.ville}, ${a.etat} ${a.zip}`, a.pays].filter(Boolean).join(', '),
   ].filter(Boolean).join('\n');
 }
 
@@ -67,8 +58,12 @@ export default function Accueil() {
   // Deux derniers colis, comme le téléphone du site ; « Tout voir » mène aux autres.
   // Pas un colis livré : le filtre est celui de la base (voir FILTRES.actifs).
   const { donnees, erreur, recharger, rafraichit, tirer, chargement } = useDonnees(async () => {
-    const [resume, derniers] = await Promise.all([monResume(), mesColis({ parPage: 2, filtre: 'actifs' })]);
-    return { resume, derniers: derniers.lignes };
+    // La date de naissance : null = jamais déclarée (on la demande), undefined = on ne sait pas
+    // (base sans la fonction, ou panne passagère) : on ne demande rien
+    const [resume, derniers, naissance] = await Promise.all([
+      monResume(), mesColis({ parPage: 2, filtre: 'actifs' }), maNaissance().catch(() => undefined),
+    ]);
+    return { resume, derniers: derniers.lignes, naissance };
   }, []);
 
   // À chaque retour sur l'accueil, et à chaque changement fait par l'équipe
@@ -87,7 +82,8 @@ export default function Accueil() {
   const c = resume?.colis || {};
 
   async function copier() {
-    await Clipboard.setStringAsync(adresseComplete(profil));
+    if (!adressePrete(profil)) return;
+    await Clipboard.setStringAsync(adresseTexte(profil, config.adresseMiami));
     setCopie(true);
     setTimeout(() => setCopie(false), 1800);
   }
@@ -141,22 +137,33 @@ export default function Accueil() {
               <Etiquette>{t('ac.adresse')}</Etiquette>
               <Feather name="map-pin" size={16} color={couleurs.accent} />
             </View>
-            <Texte gras taille={14} style={{ marginTop: 9, lineHeight: 21 }} testID="accueil-adresse">{adresseAffichee(profil)}</Texte>
+            {adressePrete(profil) ? (
+              <Texte gras taille={14} style={{ marginTop: 9, lineHeight: 21 }} testID="accueil-adresse">{adresseAffichee(profil)}</Texte>
+            ) : (
+              <Texte taille={13.5} style={{ marginTop: 9, lineHeight: 20, color: couleurs.rouge }} testID="accueil-adresse-manquante">{t('ad.manquante')}</Texte>
+            )}
             <View style={{ flexDirection: 'row', gap: 9, marginTop: 14 }}>
               <Bouton
                 titre={copie ? t('gen.copie') : t('gen.copier')}
                 icone={copie ? 'check' : 'copy'}
                 onPress={copier}
+                desactive={!adressePrete(profil)}
                 style={{ flex: 1, minHeight: 46 }}
+                testID="accueil-copier"
               />
               <Bouton
                 titre={t('gen.partager')}
                 icone="share-2"
                 variante="secondaire"
-                onPress={() => Share.share({ message: adresseComplete(profil) })}
+                onPress={() => Share.share({ message: adresseTexte(profil, config.adresseMiami) })}
+                desactive={!adressePrete(profil)}
                 style={{ minHeight: 46 }}
               />
             </View>
+            <Pressable onPress={() => router.push('/adresse')} style={{ marginTop: 12, minHeight: 36, justifyContent: 'center' }}
+              accessibilityRole="button" testID="accueil-champs">
+              <Texte gras taille={13} style={{ color: couleurs.accent }}>{t('ad.voir_champs')} →</Texte>
+            </Pressable>
           </View>
         )}
 
@@ -168,6 +175,19 @@ export default function Accueil() {
             <View style={{ flex: 1 }}>
               <Texte gras taille={14}>{t('pf.completer_titre')}</Texte>
               <Texte doux taille={12.5} style={{ marginTop: 3, lineHeight: 18 }}>{t('pf.completer_texte')}</Texte>
+            </View>
+            <Feather name="chevron-right" size={18} color={couleurs.texteDoux} />
+          </Pressable>
+        ) : null}
+
+        {/* La date de naissance : demandée aux comptes qui n'en ont pas, jamais imposée */}
+        {!equipe && donnees && donnees.naissance === null ? (
+          <Pressable onPress={() => router.push('/profil')} style={[styles.carteCompleter, ombres.carte]}
+            accessibilityRole="button" testID="accueil-naissance">
+            <Feather name="gift" size={20} color={couleurs.accent} />
+            <View style={{ flex: 1 }}>
+              <Texte gras taille={14}>{t('nz.carte_titre')}</Texte>
+              <Texte doux taille={12.5} style={{ marginTop: 3, lineHeight: 18 }}>{t('nz.carte_texte')}</Texte>
             </View>
             <Feather name="chevron-right" size={18} color={couleurs.texteDoux} />
           </Pressable>

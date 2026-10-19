@@ -1,5 +1,6 @@
 // Briques visuelles réutilisées par tous les écrans.
 
+import { useRef } from 'react';
 import { Text, View, Pressable, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { couleurs, polices, rayons, ombres } from '../lib/theme';
@@ -105,6 +106,56 @@ export function Champ({ etiquette, style, apres, erreur, testID, ...reste }) {
         />
         {apres}
       </View>
+      {erreur ? (
+        <Texte taille={12.5} style={{ color: couleurs.rouge }} accessibilityLiveRegion="polite" testID={testID ? testID + '-erreur' : undefined}>
+          {erreur}
+        </Texte>
+      ) : null}
+    </View>
+  );
+}
+
+// La date de naissance en trois cases (jour, mois, année), au clavier numérique. Elle rend
+// { jour, mois, annee } en texte ; lib/naissance.js en fait le jour civil « AAAA-MM-JJ »,
+// sans fuseau. Le curseur passe tout seul à la case suivante quand celle-ci est pleine.
+export function ChampDate({ etiquette, aide, valeur, onChange, erreur, testID }) {
+  const { t } = useLangue();
+  const refs = { mois: useRef(null), annee: useRef(null) };
+  const v = valeur || { jour: '', mois: '', annee: '' };
+  const poser = (cle, longueur, suivante) => (texte) => {
+    const chiffres = String(texte).replace(/\D/g, '').slice(0, longueur);
+    onChange({ ...v, [cle]: chiffres });
+    if (suivante && chiffres.length === longueur && refs[suivante].current) refs[suivante].current.focus();
+  };
+  const case_ = (cle, libelle, longueur, suivante, largeur, ref) => (
+    <View style={{ flex: largeur, gap: 5 }}>
+      <Text style={{ fontFamily: polices.mono, fontSize: 9.5, letterSpacing: 1, textTransform: 'uppercase', color: couleurs.texteFaible }}>{libelle}</Text>
+      <View style={[styles.champBoite, erreur ? { borderColor: couleurs.rouge } : null]}>
+        <TextInput
+          ref={ref}
+          value={v[cle]}
+          onChangeText={poser(cle, longueur, suivante)}
+          keyboardType="number-pad"
+          inputMode="numeric"
+          maxLength={longueur}
+          placeholder={cle === 'annee' ? 'AAAA' : cle === 'mois' ? 'MM' : 'JJ'}
+          placeholderTextColor={couleurs.texteFaible}
+          style={[styles.champ, { textAlign: 'center' }]}
+          accessibilityLabel={`${etiquette} — ${libelle}`}
+          testID={testID ? `${testID}-${cle}` : undefined}
+        />
+      </View>
+    </View>
+  );
+  return (
+    <View style={{ gap: 7 }}>
+      {etiquette ? <Etiquette>{etiquette}</Etiquette> : null}
+      <View style={{ flexDirection: 'row', gap: 9 }}>
+        {case_('jour', t('nz.jour'), 2, 'mois', 1, null)}
+        {case_('mois', t('nz.mois'), 2, 'annee', 1, refs.mois)}
+        {case_('annee', t('nz.annee'), 4, null, 1.6, refs.annee)}
+      </View>
+      {aide && !erreur ? <Texte doux taille={12} style={{ lineHeight: 17 }}>{aide}</Texte> : null}
       {erreur ? (
         <Texte taille={12.5} style={{ color: couleurs.rouge }} accessibilityLiveRegion="polite" testID={testID ? testID + '-erreur' : undefined}>
           {erreur}
