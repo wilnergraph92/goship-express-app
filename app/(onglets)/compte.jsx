@@ -152,6 +152,8 @@ export default function Compte() {
               </Pressable>
             </View>
           ) : null}
+          <Ligne icone="map-pin" titre={t('ad.titre')} onPress={() => router.push('/adresse')} id="compte-adresse" />
+          <Ligne icone="gift" titre={t('av.ligne')} onPress={() => router.push('/avantages')} id="compte-avantages" />
           <Ligne icone="clock" titre={t('hi.titre')} onPress={() => router.push('/historicite')} id="compte-historicite" />
           <Ligne icone="bell" titre={t('cp.notifications')} valeur={t('cp.notif.' + notif)} onPress={notifications} id="compte-notifications" />
           <Ligne icone="globe" titre={t('cp.langue')} valeur={LANGUES.find((l) => l.code === langue)?.nom} onPress={() => setChoixLangue((v) => !v)} ouvert={choixLangue} />

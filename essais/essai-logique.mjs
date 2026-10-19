@@ -257,5 +257,87 @@ console.log('I. L\'accueil sans colis livré, l\'historique (lib/api.js)');
     [livre({ ...colis, colis_historique: [] })[0], livre({ ...colis })[0], livre({ ...colis, colis_historique: [{ cree_le: 'pas une date' }] })[0]], [null, null, null]);
 }
 
+console.log('J. L\'adresse en Floride et la date de naissance (lib/adresse.js, lib/naissance.js)');
+{
+  const AD = await module_('lib/adresse.js');
+  const N = await module_('lib/naissance.js');
+  const conf = (await import('data:text/javascript;base64,' + Buffer.from(lire('config.js')).toString('base64'))).default;
+  const a = conf.adresseMiami;
+  verifier('les valeurs fixes sont exactement celles fournies par Goship Express',
+    [a.ligne1, a.ligne2, a.ville, a.etat, a.zip, a.pays, a.telephone],
+    ['8140 NW 74th Ave Unit 3', 'ABX-46780', 'Medley', 'Florida', '33166', 'United States', '786 525-2944']);
+  const marie = { nom_complet: 'Marie-Ange  Dorvil', code: 'GSE-4323' };
+  const jean = { nom_complet: 'Jean Pierre', code: 'GSE-5001' };
+  verifier('huit champs, noms anglais dans l\'ordre des formulaires', AD.champsAdresse(marie, a).map((c) => c.libelle),
+    ['Name', 'Address 1', 'Address 2', 'City', 'State', 'Zip Code', 'Country', 'Phone']);
+  verifier('Name = nom du compte + code client', AD.champsAdresse(marie, a)[0].valeur, 'Marie-Ange Dorvil GSE-4323');
+  verifier('deux clients : chacun son nom et son code, le reste identique',
+    [AD.champsAdresse(jean, a)[0].valeur, AD.champsAdresse(marie, a).slice(1).every((c, i) => c.valeur === AD.champsAdresse(jean, a)[i + 1].valeur)],
+    ['Jean Pierre GSE-5001', true]);
+  verifier('adresse complète : une ligne par information',
+    AD.adresseTexte(marie, a).split('\n'),
+    ['Marie-Ange Dorvil GSE-4323', '8140 NW 74th Ave Unit 3', 'ABX-46780', 'Medley, Florida 33166', 'United States', '786 525-2944']);
+  verifier('sans code, sans nom, sans profil : aucune adresse composée',
+    [AD.champsAdresse({ nom_complet: 'Marie' }, a), AD.champsAdresse({ code: 'GSE-1' }, a), AD.champsAdresse({ nom_complet: '  ', code: 'GSE-1' }, a),
+      AD.champsAdresse(null, a), AD.adresseTexte({}, a), AD.adressePrete(undefined)], [null, null, null, null, '', false]);
+  verifier('l\'écran « Mon adresse » est dans la pile et dans Compte',
+    [lire('app/_layout.jsx').includes('<Stack.Screen name="adresse" />'), lire('app/(onglets)/compte.jsx').includes('id="compte-adresse"')], [true, true]);
+  verifier('le site et l\'application disent la même chose (Address 2, téléphone)',
+    (() => {
+      const s = path.join(site, 'assets', 'js', 'api.js');
+      return fs.existsSync(s) ? [fs.readFileSync(path.join(site, 'mon-compte.html'), 'utf8').includes('>ABX-46780<'),
+        fs.readFileSync(path.join(site, 'mon-compte.html'), 'utf8').includes('>786 525-2944<')] : [true, true];
+    })(), [true, true]);
+
+  const lire_ = (j, m, an, auj = '2026-10-19') => N.lireNaissance({ jour: j, mois: m, annee: an }, auj);
+  verifier('date valide : le jour civil AAAA-MM-JJ, sans fuseau', lire_('15', '3', '1990').iso, '1990-03-15');
+  verifier('un chiffre pour le jour et le mois : complété', lire_('5', '7', '2001').iso, '2001-07-05');
+  verifier('vide, incomplet, impossible, avant 1900, futur',
+    [lire_('', '', '').code, lire_('15', '3', '90').code, lire_('30', '2', '1990').code, lire_('31', '4', '1990').code, lire_('1', '13', '1990').code,
+      lire_('1', '1', '1899').code, lire_('20', '10', '2026').code, lire_('1', '1', '2999').code],
+    ['vide', 'incomplet', 'invalide', 'invalide', 'invalide', 'invalide', 'futur', 'futur']);
+  verifier('aujourd\'hui est accepté, demain refusé', [lire_('19', '10', '2026').valide, lire_('20', '10', '2026').valide], [true, false]);
+  verifier('29 février : année bissextile seulement', [lire_('29', '2', '2000').valide, lire_('29', '2', '2001').valide], [true, false]);
+  verifier('« aujourd\'hui » de l\'appareil s\'écrit à la main (pas d\'UTC)', N.aujourdhuiLocal(new Date(2026, 9, 19, 23, 59)), '2026-10-19');
+  verifier('affichage sans décalage de jour, dans les quatre langues',
+    ['fr', 'en', 'es', 'ht'].map((l) => N.jourCivil('1990-03-15', l)), ['15 mars 1990', 'March 15, 1990', '15 de marzo de 1990', '15 mas 1990']);
+  verifier('chaque refus a son message traduit en quatre langues',
+    Object.values(N.MESSAGE_NAISSANCE).every((c) => /fr: .*en: .*es: .*ht: /s.test((new RegExp(`'${c.replace('.', '\\.')}': \\{[\\s\\S]*?\\n  \\}|'${c.replace('.', '\\.')}': \\{[^}]*\\}`).exec(lire('lib/i18n.js')) || [''])[0])), true);
+  verifier('l\'inscription envoie la date et ne se fait pas sans elle',
+    [lire('lib/session.js').includes('date_naissance: champs.date_naissance'), lire('app/inscription.jsx').includes('if (!n.valide) e.naissance')], [true, true]);
+}
+
+console.log('K. Les programmes : GOPOINTS, bienvenue, parrainage (lib/programmes.js, app/avantages.jsx)');
+{
+  const PR = await module_('lib/programmes.js');
+  verifier('un code saisi : majuscules, sans espaces, 24 signes au plus',
+    [PR.normaliserCodeParrain(' gs ab c 123 '), PR.normaliserCodeParrain('a'.repeat(40)).length, PR.normaliserCodeParrain(null)], ['GSABC123', 24, '']);
+  verifier('le code d\'un lien d\'invitation', [PR.codeDuLien('https://x.net/inscription.html?parrain=gsabc123'), PR.codeDuLien('https://x.net/?a=1&parrain=GSZZ9988'), PR.codeDuLien('https://x.net/'), PR.codeDuLien('?parrain=ab')],
+    ['GSABC123', 'GSZZ9988', '', '']);
+  verifier('le message d\'invitation : code et lien, ou le code seul sans lien',
+    [PR.messageInvitation('Rejoins-moi avec mon code {code} : {lien}', 'GSABC123', 'https://x.net/i?parrain=GSABC123'), PR.messageInvitation('Rejoins-moi avec mon code {code} : {lien}', 'GSABC123', '')],
+    ['Rejoins-moi avec mon code GSABC123 : https://x.net/i?parrain=GSABC123', 'Rejoins-moi avec mon code GSABC123']);
+  const i18n = lire('lib/i18n.js');
+  const cles = [...new Set([...i18n.matchAll(/^  '((?:av|err\.(?:OFFER|INSUFFICIENT|DUPLICATE|INVALID_REFERRAL|SELF|ALREADY|REFERRAL))[\w.]*)': \{/gm)].map((m) => m[1]))];
+  const complet = cles.filter((c) => {
+    const bloc = new RegExp(`'${c.replace(/\./g, '\\.')}': \\{([\\s\\S]*?)\\n  \\},`).exec(i18n);
+    return bloc && ['fr', 'en', 'es', 'ht'].every((l) => new RegExp(`\\n    ${l}: '`).test(bloc[1]) || new RegExp(`\\n    ${l}: "`).test(bloc[1]));
+  });
+  verifier('tous les textes des programmes existent en quatre langues (' + cles.length + ')', complet.length === cles.length && cles.length > 60, true);
+  verifier('le texte marketing créole est celui fourni, et la CTA du parrainage aussi',
+    [i18n.includes("Envite yon zanmi dekouvri GoShip Express. Lè zanmi ou a kreye kont li epi li fè premye tranzaksyon kalifye li, nou ka rekonpanse nou toulede selon kondisyon pwogram nan."),
+     /'av\.refer\.cta': \{[^}]*ht: 'ENVITE YON ZANMI'/s.test(i18n)], [true, true]);
+  verifier('chaque code métier des programmes est connu de l\'application et traduit',
+    ['OFFER_UNAVAILABLE', 'OFFER_OUT_OF_STOCK', 'OFFER_LIMIT_REACHED', 'INSUFFICIENT_POINTS', 'DUPLICATE_OPERATION', 'INVALID_REFERRAL_CODE', 'SELF_REFERRAL', 'ALREADY_REFERRED', 'REFERRAL_INACTIVE', 'REFERRAL_TOO_LATE', 'REFERRAL_CYCLE']
+      .every((c) => lire('lib/erreurs.js').includes(`'${c}'`) && i18n.includes(`'err.${c}'`)), true);
+  verifier('l\'écran est dans la pile, dans Compte, et la saisie du code est à l\'inscription',
+    [lire('app/_layout.jsx').includes('<Stack.Screen name="avantages" />'), lire('app/(onglets)/compte.jsx').includes('id="compte-avantages"'),
+     lire('app/inscription.jsx').includes('testID="in-parrain"'), lire('lib/session.js').includes('code_parrainage:')], [true, true, true, true]);
+  verifier('l\'application n\'écrit ni ne calcule aucun avantage : seulement des fonctions de la base',
+    ['mon_portefeuille', 'ma_bienvenue', 'mon_parrainage', 'utiliser_points', 'noter_invitation', 'utiliser_code_parrainage', 'regler_ma_preference_anniversaire']
+      .every((f) => lire('lib/api.js').includes(`'${f}'`)) && !/from\('(points_|recompenses|parrainages|codes_parrainage)/.test(lire('lib/api.js') + lire('app/avantages.jsx')), true);
+  verifier('un échange envoie une clé par appui (un double appui ne dépense qu\'une fois)', lire('app/avantages.jsx').includes('nouvelleCle()'), true);
+}
+
 console.log(`${resultats.length} vérifications, ${resultats.filter(Boolean).length} réussies.`);
 process.exit(resultats.every(Boolean) ? 0 : 1);

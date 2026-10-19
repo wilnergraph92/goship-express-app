@@ -50,13 +50,18 @@ export default {
     tiktok: 'https://www.tiktok.com/@goshipexpress.net',
   },
 
-  // Adresse de réception en Floride : la même pour tous les clients.
-  // Le client écrit son code juste après son nom, c'est ce qui identifie ses colis.
+  // Adresse de réception en Floride : la même pour tous les clients, exactement comme
+  // Goship Express l'a fournie (les mêmes valeurs que « Votre adresse en Floride » du site).
+  // Seuls le nom et le code client changent : ils viennent du compte connecté (lib/adresse.js).
+  // Les noms des champs restent en anglais : ce sont ceux des formulaires des magasins.
   adresseMiami: {
     ligne1: '8140 NW 74th Ave Unit 3',
-    ligne2: 'APT-46780',
-    ligne3: 'Medley, Florida 33166',
+    ligne2: 'ABX-46780',
+    ville: 'Medley',
+    etat: 'Florida',
+    zip: '33166',
     pays: 'United States',
+    telephone: '786 525-2944',
   },
 
   // Ce que voient les clients. Les factures, leurs paiements et le solde viennent de la

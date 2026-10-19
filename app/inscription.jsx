@@ -5,12 +5,14 @@ import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'rea
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import EnTete from '../components/EnTete';
-import { Texte, Bouton, Champ, Etiquette } from '../components/ui';
+import { Texte, Bouton, Champ, ChampDate, Etiquette } from '../components/ui';
 import { couleurs, rayons } from '../lib/theme';
 import { useLangue } from '../lib/i18n';
 import { useSession, MDP_MINIMUM, emailValide } from '../lib/session';
 import { classer } from '../lib/erreurs';
+import { lireNaissance, MESSAGE_NAISSANCE } from '../lib/naissance';
 import BoutonGoogle from '../components/BoutonGoogle';
+import { normaliserCodeParrain } from '../lib/programmes';
 
 const PAYS = [
   { code: 'HT', cle: 'pays.HT' },
@@ -23,8 +25,9 @@ export default function Inscription() {
   const { inscription, fournisseurs, connexionAvec } = useSession();
 
   const [champs, setChamps] = useState({
-    nom_complet: '', email: '', motDePasse: '', telephone: '', pays: 'HT', ville: '',
+    nom_complet: '', email: '', motDePasse: '', telephone: '', pays: 'HT', ville: '', code_parrainage: '',
   });
+  const [naissance, setNaissance] = useState({ jour: '', mois: '', annee: '' });
   const [erreurs, setErreurs] = useState({});
   const [message, setMessage] = useState(null);
   const [occupe, setOccupe] = useState(false);
@@ -42,10 +45,13 @@ export default function Inscription() {
     if (!champs.nom_complet.trim()) e.nom_complet = t('in.champs');
     if (!emailValide(champs.email)) e.email = t('in.email_invalide');
     if (String(champs.motDePasse).length < MDP_MINIMUM) e.motDePasse = t('in.mdp_court');
+    // La date de naissance est obligatoire : sans elle valide, aucun compte n'est créé
+    const n = lireNaissance(naissance);
+    if (!n.valide) e.naissance = t(MESSAGE_NAISSANCE[n.code]);
     if (Object.keys(e).length) { setErreurs(e); return; }
     setOccupe(true);
     try {
-      const res = await inscription({ ...champs, langue });
+      const res = await inscription({ ...champs, date_naissance: n.iso, langue });
       if (res && res.confirmation) {
         // Compte créé, mais l'adresse e-mail doit d'abord être confirmée
         setMessage({ type: 'ok', texte: t('in.confirmez') });
@@ -57,6 +63,8 @@ export default function Inscription() {
       if (code === 'email-existe') setErreurs({ email: t('in.email_existe') });
       else if (code === 'email-invalide') setErreurs({ email: t('in.email_invalide') });
       else if (code === 'mot-de-passe-court' || code === 'weak_password') setErreurs({ motDePasse: t('in.mdp_court') });
+      // La base a refusé la création du profil (date absente ou invalide) : GoTrue n'en dit pas plus
+      else if (/Database error saving new user/i.test(String(err && err.message))) setErreurs({ naissance: t('nz.refusee') });
       else {
         const c = classer(err);
         setMessage({ type: 'erreur', texte: t('err.' + (['reseau', 'delai', 'serveur'].indexOf(c.type) >= 0 ? c.type : 'inconnue')) });
@@ -105,10 +113,15 @@ export default function Inscription() {
         ) : null}
         <Champ etiquette={t('in.nom')} value={champs.nom_complet} onChangeText={poser('nom_complet')} autoComplete="name"
           erreur={erreurs.nom_complet} maxLength={120} testID="in-nom" />
+        <ChampDate etiquette={t('nz.libelle')} aide={t('nz.aide')} valeur={naissance} erreur={erreurs.naissance} testID="in-naissance"
+          onChange={(v) => { setNaissance(v); setErreurs((x) => ({ ...x, naissance: undefined })); setMessage(null); }} />
         <Champ etiquette={t('cx.email')} value={champs.email} onChangeText={poser('email')} autoCapitalize="none"
           keyboardType="email-address" inputMode="email" autoComplete="email" erreur={erreurs.email} maxLength={160} testID="in-email" />
         <Champ etiquette={t('cx.motdepasse')} value={champs.motDePasse} onChangeText={poser('motDePasse')} secureTextEntry
           autoCapitalize="none" autoComplete="new-password" textContentType="newPassword" erreur={erreurs.motDePasse} testID="in-mdp" />
+        <Champ etiquette={t('in.parrain')} value={champs.code_parrainage} onChangeText={(v) => poser('code_parrainage')(normaliserCodeParrain(v))}
+          autoCapitalize="characters" autoCorrect={false} maxLength={24} testID="in-parrain" />
+        <Texte doux taille={12.5} style={{ marginTop: -6 }}>{t('in.parrain_aide')}</Texte>
         <Champ etiquette={t('in.telephone')} value={champs.telephone} onChangeText={poser('telephone')} keyboardType="phone-pad"
           autoComplete="tel" maxLength={40} testID="in-telephone" />
 
