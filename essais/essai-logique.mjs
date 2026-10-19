@@ -339,5 +339,47 @@ console.log('K. Les programmes : GOPOINTS, bienvenue, parrainage (lib/programmes
   verifier('un échange envoie une clé par appui (un double appui ne dépense qu\'une fois)', lire('app/avantages.jsx').includes('nouvelleCle()'), true);
 }
 
+console.log('L. L\'inscription : les mêmes champs que le site (app/inscription.jsx, lib/identite.js, lib/lieux.js)');
+{
+  const ID = await module_('lib/identite.js');
+  const LX = await module_('lib/lieux.js');
+  verifier('sexe et document : les mêmes choix que le site', [ID.SEXES, ID.DOCUMENTS], [['M', 'F'], ['passeport', 'cedula']]);
+  verifier('un passeport : lettres et chiffres, 5 à 20 signes, espaces et tirets ôtés, majuscules',
+    [ID.numeroDocument('passeport', ' ab-12 345 '), ID.numeroDocument('passeport', 'AB12'), ID.numeroDocument('passeport', 'AB 12!45'), ID.numeroDocument('passeport', 'A'.repeat(21))],
+    ['AB12345', '', '', '']);
+  verifier('une cédula : chiffres seulement, 6 à 15',
+    [ID.numeroDocument('cedula', '001-1234567-8'), ID.numeroDocument('cedula', '12345'), ID.numeroDocument('cedula', '12345A'), ID.numeroDocument('cedula', '1'.repeat(16))],
+    ['00112345678', '', '', '']);
+  verifier('aucun numéro sans document choisi', [ID.numeroDocument('', '123456'), ID.numeroDocument(undefined, 'ABCDEF'), ID.numeroDocument('passeport', null)], ['', '', '']);
+  verifier('un nom et un prénom au moins ; sept chiffres au moins au téléphone',
+    [ID.nomComplet('Marie'), ID.nomComplet(' Marie  Dorvil '), ID.telephoneValide('+509 37'), ID.telephoneValide('+509 3712 3456')], [false, true, false, true]);
+  verifier('un numéro de téléphone d\'exemple par pays, comme le site', Object.keys(ID.TELEPHONE_EXEMPLE), ['HT', 'DO', 'US']);
+  const copieLieux = path.join(site, 'assets', 'js', 'lieux.js');
+  if (fs.existsSync(copieLieux)) {
+    const fen = {};
+    fen.window = fen;
+    vm.createContext(fen);
+    vm.runInContext(fs.readFileSync(copieLieux, 'utf8'), fen);
+    verifier('régions, communes et États : identiques à assets/js/lieux.js du site',
+      [JSON.stringify(LX.REGIONS) === JSON.stringify(fen.GoshipLieux.REGIONS), JSON.stringify(LX.ETATS_US) === JSON.stringify(fen.GoshipLieux.ETATS_US)], [true, true]);
+  } else {
+    console.log('  (site absent : comparaison des lieux sautée)');
+  }
+  const ins = lire('app/inscription.jsx');
+  const ordre = ['in-nom', 'in-naissance', 'in-sexe', 'in-document', 'in-numero', 'in-parrain', 'in-pays', 'in-region', 'in-ville', 'in-adresse', 'in-telephone', 'in-email', 'in-mdp']
+    .map((id) => ins.indexOf(`testID="${id}"`));
+  verifier('tous les champs du site, dans son ordre', ordre.every((i, k) => i > 0 && (k === 0 || i > ordre[k - 1])), true);
+  verifier('sans aide sous la date de naissance (comme le site)', ins.includes("t('nz.aide')"), false);
+  verifier('le numéro attend le choix du document',
+    [ins.includes('editable={!!champs.type_document}'), ins.includes('choisirDocument')], [true, true]);
+  verifier('rien ne part sans sexe, document, numéro valide, pays, région, ville et adresse',
+    ['e.sexe', 'e.type_document', 'e.numero_document', 'e.pays', 'e.region', 'e.ville', 'e.adresse'].every((x) => ins.includes(x + ' =')), true);
+  const sess = lire('lib/session.js');
+  verifier('sexe, type de document et numéro partent dans les données d\'inscription',
+    ["sexe: champs.sexe", "type_document: champs.type_document", "numero_document: champs.numero_document"].map((x) => sess.includes(x)), [true, true, true]);
+  verifier('l\'application ne garde pas le numéro du document : il va à la base, pas au stockage de l\'appareil',
+    /numero_document/.test(lire('lib/coffre.js')) || /AsyncStorage[^\n]*numero_document/.test(ins), false);
+}
+
 console.log(`${resultats.length} vérifications, ${resultats.filter(Boolean).length} réussies.`);
 process.exit(resultats.every(Boolean) ? 0 : 1);
