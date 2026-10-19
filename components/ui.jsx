@@ -223,6 +223,7 @@ export function ChampChoix({ etiquette, invite, options, valeur, onChange, desac
       {etiquette ? <Etiquette>{etiquette}</Etiquette> : null}
       <Pressable
         onPress={() => { if (!desactive) setOuvert(true); }}
+        disabled={!!desactive}
         accessibilityRole="button"
         accessibilityLabel={etiquette}
         accessibilityState={{ disabled: !!desactive, expanded: ouvert }}
