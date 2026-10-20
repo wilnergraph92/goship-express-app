@@ -1,7 +1,7 @@
 // Briques visuelles réutilisées par tous les écrans.
 
-import { useRef } from 'react';
-import { Text, View, Pressable, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
+import { useRef, useState } from 'react';
+import { Text, View, Pressable, TextInput, ActivityIndicator, StyleSheet, Modal, FlatList } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { couleurs, polices, rayons, ombres } from '../lib/theme';
 import { useLangue } from '../lib/i18n';
@@ -161,6 +161,114 @@ export function ChampDate({ etiquette, aide, valeur, onChange, erreur, testID })
           {erreur}
         </Texte>
       ) : null}
+    </View>
+  );
+}
+
+// Un choix parmi quelques options, en pastilles (sexe, document, pays) : comme les listes du formulaire
+// du site, mais toutes visibles d'un coup. options : [{ valeur, libelle }].
+export function ChoixPastilles({ etiquette, options, valeur, onChange, erreur, testID }) {
+  return (
+    <View style={{ gap: 7 }}>
+      {etiquette ? <Etiquette>{etiquette}</Etiquette> : null}
+      <View style={{ flexDirection: 'row', gap: 8 }} accessibilityRole="radiogroup">
+        {options.map((o) => {
+          const choisi = valeur === o.valeur;
+          return (
+            <Pressable
+              key={o.valeur}
+              onPress={() => onChange(o.valeur)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: choisi }}
+              testID={testID ? testID + '-' + o.valeur : undefined}
+              style={{
+                flex: 1,
+                minHeight: 50,
+                paddingHorizontal: 6,
+                paddingVertical: 6,
+                borderRadius: rayons.champ,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: choisi ? couleurs.nuit : couleurs.carte,
+                borderWidth: 1,
+                borderColor: choisi ? couleurs.nuit : erreur ? couleurs.rouge : couleurs.bord,
+              }}
+            >
+              <Texte gras taille={13} style={{ color: choisi ? '#ffffff' : couleurs.texte, textAlign: 'center' }} numberOfLines={2}>
+                {o.libelle}
+              </Texte>
+            </Pressable>
+          );
+        })}
+      </View>
+      {erreur ? (
+        <Texte taille={12.5} style={{ color: couleurs.rouge }} accessibilityLiveRegion="polite" testID={testID ? testID + '-erreur' : undefined}>
+          {erreur}
+        </Texte>
+      ) : null}
+    </View>
+  );
+}
+
+// Une liste de choix qui s'ouvre au toucher (région, ville) : le « select » du formulaire du site.
+// Fait avec Modal et FlatList, qui sont dans React Native : aucun module natif de plus, donc la
+// mise à jour à distance suffit. options : [{ valeur, libelle }] ; desactive : fermé tant qu'une
+// autre case n'est pas remplie (la région attend le pays).
+export function ChampChoix({ etiquette, invite, options, valeur, onChange, desactive, erreur, testID }) {
+  const { t } = useLangue();
+  const [ouvert, setOuvert] = useState(false);
+  const choisi = options.find((o) => o.valeur === valeur);
+  return (
+    <View style={{ gap: 7 }}>
+      {etiquette ? <Etiquette>{etiquette}</Etiquette> : null}
+      <Pressable
+        onPress={() => { if (!desactive) setOuvert(true); }}
+        disabled={!!desactive}
+        accessibilityRole="button"
+        accessibilityLabel={etiquette}
+        accessibilityState={{ disabled: !!desactive, expanded: ouvert }}
+        testID={testID}
+        style={[styles.champBoite, { minHeight: 54, paddingHorizontal: 16, opacity: desactive ? 0.55 : 1 }, erreur ? { borderColor: couleurs.rouge } : null]}
+      >
+        <Texte taille={15.5} style={{ flex: 1, color: choisi ? couleurs.texte : couleurs.texteFaible }} numberOfLines={1}>
+          {choisi ? choisi.libelle : invite}
+        </Texte>
+        <Feather name="chevron-down" size={18} color={couleurs.texteFaible} />
+      </Pressable>
+      {erreur ? (
+        <Texte taille={12.5} style={{ color: couleurs.rouge }} accessibilityLiveRegion="polite" testID={testID ? testID + '-erreur' : undefined}>
+          {erreur}
+        </Texte>
+      ) : null}
+      <Modal visible={ouvert} transparent animationType="fade" onRequestClose={() => setOuvert(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,26,63,0.45)', justifyContent: 'flex-end' }} onPress={() => setOuvert(false)} accessibilityLabel={t('gen.fermer')}>
+          <Pressable
+            onPress={() => {}}
+            style={{ backgroundColor: couleurs.carte, borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: '72%', paddingTop: 16 }}
+          >
+            <Texte gras taille={15} style={{ paddingHorizontal: 20, paddingBottom: 10 }}>{etiquette || invite}</Texte>
+            <FlatList
+              data={options}
+              keyExtractor={(o) => o.valeur}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => { onChange(item.valeur); setOuvert(false); }}
+                  accessibilityRole="button"
+                  testID={testID ? testID + '-option-' + item.valeur : undefined}
+                  style={{ paddingVertical: 15, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: couleurs.bord, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+                >
+                  <Texte taille={15.5} gras={item.valeur === valeur} style={{ flex: 1 }}>{item.libelle}</Texte>
+                  {item.valeur === valeur ? <Feather name="check" size={18} color={couleurs.nuit} /> : null}
+                </Pressable>
+              )}
+            />
+            <Pressable onPress={() => setOuvert(false)} accessibilityRole="button" style={{ padding: 18, alignItems: 'center', borderTopWidth: 1, borderTopColor: couleurs.bord }}>
+              <Texte gras doux taille={14}>{t('gen.fermer')}</Texte>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

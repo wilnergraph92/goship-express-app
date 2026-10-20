@@ -532,19 +532,54 @@ async function main() {
   await id('in-naissance-jour').fill('15');
   await id('in-naissance-mois').fill('03');
   await id('in-naissance-annee').fill('1990');
+  // Le formulaire du site : tout est obligatoire (sauf le parrain), rien ne part à moitié rempli
+  await id('in-creer').click();
+  verifier('inscription : sexe, document, pays, adresse et téléphone obligatoires',
+    [await visible('in-sexe-erreur', 1000), await visible('in-document-erreur', 1000), await visible('in-pays-erreur', 1000),
+     await visible('in-adresse-erreur', 1000), await visible('in-telephone-erreur', 1000)], [true, true, true, true, true]);
+  verifier('le numéro du document attend le choix du document', await id('in-numero').isEditable(), false);
+  await id('in-sexe-F').click();
+  await id('in-document-passeport').click();
+  await id('in-numero').fill('A1');
+  await id('in-creer').click();
+  verifier('inscription : un numéro de passeport trop court est refusé', await visible('in-numero-erreur', 1000), true);
+  await id('in-numero').fill('ab-12 345');
+  // Pays, région, ville : des listes qui s'ouvrent au toucher, la région attend le pays
+  verifier('la région est fermée tant que le pays n\'est pas choisi', await id('in-region').getAttribute('aria-disabled'), 'true');
+  await id('in-pays').click();
+  await id('in-pays-option-HT').click();
+  await id('in-region').click();
+  await id('in-region-option-Ouest').click();
+  await id('in-ville').click();
+  await id('in-ville-option-Port-au-Prince').click();
+  await id('in-adresse').fill('12 rue des Fleurs');
+  await id('in-telephone').fill('+509 3712 0000');
   await id('in-email').fill('marie@exemple.com');
   await id('in-mdp').fill('secret-rose-1');
   await id('in-creer').click();
   verifier('adresse déjà inscrite : message', await visible('in-email-erreur', 8000) && (await texte('in-email-erreur')).startsWith('Un compte existe déjà'), true);
   await id('in-email').fill('rose@exemple.com');
   await id('in-creer').click();
-  // Rose n'a donné ni téléphone ni ville (comme un compte ouvert avec Google) :
-  // « Mes informations » s'ouvre de lui-même, par-dessus l'accueil
-  verifier('profil incomplet : « Mes informations » s\'ouvre de lui-même, avec le nom',
-    [await visible('pf-enregistrer', 15000), await id('pf-nom').inputValue()], [true, 'Rose Nouvelle']);
-  verifier('la base a créé le client', await sql("select count(*) from clients where email = 'rose@exemple.com';"), '1');
-  verifier('… et gardé sa date de naissance, à part des clients, jour pour jour',
+  await visible('accueil-code', 15000);
+  verifier('la base a créé le client, avec sexe, document, adresse et ville',
+    await sql("select concat_ws('|', sexe, type_document, pays, region, ville, adresse, telephone) from clients where email = 'rose@exemple.com';"),
+    'F|passeport|HT|Ouest|Port-au-Prince|12 rue des Fleurs|+509 3712 0000');
+  verifier('… et le numéro du document, normalisé, dans la table fermée',
+    await sql("select p.numero from profils_document p join clients c on c.id = p.client_id where c.email = 'rose@exemple.com';"), 'AB12345');
+  verifier('… et sa date de naissance, à part des clients, jour pour jour',
     await sql("select n.date_naissance::text from profils_naissance n join clients c on c.id = n.client_id where c.email = 'rose@exemple.com';"), '1990-03-15');
+  // Un compte ouvert avec Google n'a ni téléphone ni ville : on retire les deux à Rose, qui se reconnecte, pour rejouer ce cas
+  await sql("update clients set telephone = '', ville = '' where email = 'rose@exemple.com';");
+  await onglet('compte');
+  await id('compte-deconnexion').click();
+  await id('compte-deconnexion-oui').click();
+  // L'écran de connexion d'avant la création du compte reste dans la pile, caché : on prend celui qu'on voit
+  const visibles = (testid) => page.locator(`[data-testid="${testid}"]:visible`);
+  await visibles('connexion-email').fill('rose@exemple.com');
+  await visibles('connexion-mdp').fill('secret-rose-1');
+  await visibles('connexion-entrer').click();
+  verifier('profil incomplet : « Mes informations » s\'ouvre de lui-même, avec le nom',
+    [await visible('pf-enregistrer', 20000), await id('pf-nom').inputValue()], [true, 'Rose Nouvelle']);
   // Refermé sans rien remplir : l'accueil, son code, la carte ; et la base refuse les pré-alertes
   await id('retour').last().click();
   await onglet('index');   // l'onglet Compte de la session d'avant peut rester au premier plan

@@ -5,27 +5,43 @@ import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'rea
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import EnTete from '../components/EnTete';
-import { Texte, Bouton, Champ, ChampDate, Etiquette } from '../components/ui';
-import { couleurs, rayons } from '../lib/theme';
+import { Texte, Bouton, Champ, ChampDate, ChoixPastilles, ChampChoix } from '../components/ui';
+import { couleurs } from '../lib/theme';
 import { useLangue } from '../lib/i18n';
 import { useSession, MDP_MINIMUM, emailValide } from '../lib/session';
 import { classer } from '../lib/erreurs';
 import { lireNaissance, MESSAGE_NAISSANCE } from '../lib/naissance';
 import BoutonGoogle from '../components/BoutonGoogle';
 import { normaliserCodeParrain } from '../lib/programmes';
+import { REGIONS, ETATS_US } from '../lib/lieux';
+import { SEXES, DOCUMENTS, numeroDocument, TELEPHONE_EXEMPLE, nomComplet, telephoneValide } from '../lib/identite';
 
-const PAYS = [
-  { code: 'HT', cle: 'pays.HT' },
-  { code: 'DO', cle: 'pays.DO' },
-  { code: 'US', cle: 'pays.US' },
-];
+const PAYS = ['HT', 'DO', 'US'];
+
+// Les clés de texte écrites en toutes lettres : l'essai de traductions ne suit pas les clés composées
+const CLE_SEXE = { M: 'ins.sexe_M', F: 'ins.sexe_F' };
+const CLE_DOCUMENT = { passeport: 'ins.doc_passeport', cedula: 'ins.doc_cedula' };
+const CLE_NUMERO = {
+  aucun: ['ins.num_aucun', 'ins.num_aucun_ex'],
+  passeport: ['ins.num_passeport', 'ins.num_passeport_ex'],
+  cedula: ['ins.num_cedula', 'ins.num_cedula_ex'],
+};
+const CLE_ERREUR_NUMERO = { passeport: 'ins.err_num_passeport', cedula: 'ins.err_num_cedula' };
+
+// Marque « Autre ville… » dans la liste des communes : la ville se saisit alors à la main
+const AUTRE = '__autre';
+
+// Les communes se rangent par ordre alphabétique français, comme sur le site
+const trier = (liste) => liste.slice().sort((a, b) => a.localeCompare(b, 'fr'));
 
 export default function Inscription() {
   const { t, langue } = useLangue();
   const { inscription, fournisseurs, connexionAvec } = useSession();
 
+  // Les mêmes champs, dans le même ordre que le formulaire du site : tout est obligatoire sauf le parrain
   const [champs, setChamps] = useState({
-    nom_complet: '', email: '', motDePasse: '', telephone: '', pays: 'HT', ville: '', code_parrainage: '',
+    nom_complet: '', sexe: '', type_document: '', numero_document: '', code_parrainage: '',
+    pays: '', region: '', ville: '', ville_libre: '', adresse: '', telephone: '', email: '', motDePasse: '',
   });
   const [naissance, setNaissance] = useState({ jour: '', mois: '', annee: '' });
   const [erreurs, setErreurs] = useState({});
@@ -39,19 +55,58 @@ export default function Inscription() {
     setMessage(null);
   };
 
+  // Changer de pays vide la région et la ville ; changer de région vide la ville
+  const choisirPays = (p) => {
+    setChamps((c) => ({ ...c, pays: p, region: '', ville: '', ville_libre: '' }));
+    setErreurs((e) => ({ ...e, pays: undefined, region: undefined, ville: undefined }));
+    setMessage(null);
+  };
+  const choisirRegion = (r) => {
+    setChamps((c) => ({ ...c, region: r, ville: '', ville_libre: '' }));
+    setErreurs((e) => ({ ...e, region: undefined, ville: undefined }));
+    setMessage(null);
+  };
+  // Changer de document change le numéro attendu : l'ancien ne vaut plus pour l'autre
+  const choisirDocument = (d) => {
+    setChamps((c) => ({ ...c, type_document: d, numero_document: '' }));
+    setErreurs((e) => ({ ...e, type_document: undefined, numero_document: undefined }));
+    setMessage(null);
+  };
+
+  const regions = champs.pays === 'US' ? ETATS_US : champs.pays ? Object.keys(REGIONS[champs.pays] || {}) : [];
+  const communes = champs.pays !== 'US' && REGIONS[champs.pays] && REGIONS[champs.pays][champs.region];
+  // Aux États-Unis et pour « Autre ville… », la ville se saisit à la main
+  const villeLibre = champs.pays === 'US' || champs.ville === AUTRE;
+  const doc = champs.type_document || 'aucun';
+
   async function creer() {
     if (occupe) return;
     const e = {};
-    if (!champs.nom_complet.trim()) e.nom_complet = t('in.champs');
-    if (!emailValide(champs.email)) e.email = t('in.email_invalide');
-    if (String(champs.motDePasse).length < MDP_MINIMUM) e.motDePasse = t('in.mdp_court');
+    if (!nomComplet(champs.nom_complet)) e.nom_complet = t('ins.err_nom');
     // La date de naissance est obligatoire : sans elle valide, aucun compte n'est créé
     const n = lireNaissance(naissance);
     if (!n.valide) e.naissance = t(MESSAGE_NAISSANCE[n.code]);
+    if (!champs.sexe) e.sexe = t('ins.requis');
+    if (!champs.type_document) e.type_document = t('ins.requis');
+    const numero = numeroDocument(champs.type_document, champs.numero_document);
+    if (champs.type_document && !numero) e.numero_document = t(CLE_ERREUR_NUMERO[champs.type_document]);
+    if (!champs.pays) e.pays = t('ins.requis');
+    if (champs.pays && !champs.region) e.region = t('ins.requis');
+    const ville = (villeLibre ? champs.ville_libre : champs.ville).trim();
+    if (champs.region && !ville) e.ville = t('ins.requis');
+    if (!champs.adresse.trim()) e.adresse = t('ins.requis');
+    if (!telephoneValide(champs.telephone)) e.telephone = t('ins.err_tel');
+    if (!emailValide(champs.email)) e.email = t('ins.err_email');
+    if (String(champs.motDePasse).length < MDP_MINIMUM) e.motDePasse = t('ins.err_mdp');
     if (Object.keys(e).length) { setErreurs(e); return; }
     setOccupe(true);
     try {
-      const res = await inscription({ ...champs, date_naissance: n.iso, langue });
+      const res = await inscription({
+        nom_complet: champs.nom_complet.trim(), email: champs.email, motDePasse: champs.motDePasse,
+        telephone: champs.telephone, pays: champs.pays, region: champs.region, ville, adresse: champs.adresse.trim(),
+        sexe: champs.sexe, type_document: champs.type_document, numero_document: numero,
+        code_parrainage: champs.code_parrainage, date_naissance: n.iso, langue,
+      });
       if (res && res.confirmation) {
         // Compte créé, mais l'adresse e-mail doit d'abord être confirmée
         setMessage({ type: 'ok', texte: t('in.confirmez') });
@@ -111,51 +166,51 @@ export default function Inscription() {
             </View>
           </>
         ) : null}
-        <Champ etiquette={t('in.nom')} value={champs.nom_complet} onChangeText={poser('nom_complet')} autoComplete="name"
-          erreur={erreurs.nom_complet} maxLength={120} testID="in-nom" />
-        <ChampDate etiquette={t('nz.libelle')} aide={t('nz.aide')} valeur={naissance} erreur={erreurs.naissance} testID="in-naissance"
+        <Champ etiquette={t('ins.nom')} placeholder={t('ins.nom_ph')} value={champs.nom_complet} onChangeText={poser('nom_complet')}
+          autoComplete="name" erreur={erreurs.nom_complet} maxLength={120} testID="in-nom" />
+        <ChampDate etiquette={t('ins.naissance')} valeur={naissance} erreur={erreurs.naissance} testID="in-naissance"
           onChange={(v) => { setNaissance(v); setErreurs((x) => ({ ...x, naissance: undefined })); setMessage(null); }} />
-        <Champ etiquette={t('cx.email')} value={champs.email} onChangeText={poser('email')} autoCapitalize="none"
-          keyboardType="email-address" inputMode="email" autoComplete="email" erreur={erreurs.email} maxLength={160} testID="in-email" />
-        <Champ etiquette={t('cx.motdepasse')} value={champs.motDePasse} onChangeText={poser('motDePasse')} secureTextEntry
-          autoCapitalize="none" autoComplete="new-password" textContentType="newPassword" erreur={erreurs.motDePasse} testID="in-mdp" />
-        <Champ etiquette={t('in.parrain')} value={champs.code_parrainage} onChangeText={(v) => poser('code_parrainage')(normaliserCodeParrain(v))}
+        <ChoixPastilles etiquette={t('ins.sexe')} valeur={champs.sexe} onChange={poser('sexe')} erreur={erreurs.sexe} testID="in-sexe"
+          options={SEXES.map((x) => ({ valeur: x, libelle: t(CLE_SEXE[x]) }))} />
+        <ChoixPastilles etiquette={t('ins.document')} valeur={champs.type_document} onChange={choisirDocument}
+          erreur={erreurs.type_document} testID="in-document"
+          options={DOCUMENTS.map((x) => ({ valeur: x, libelle: t(CLE_DOCUMENT[x]) }))} />
+        <Champ etiquette={t(CLE_NUMERO[doc][0])} placeholder={t(CLE_NUMERO[doc][1])} value={champs.numero_document}
+          onChangeText={poser('numero_document')} editable={!!champs.type_document} autoCapitalize="characters" autoCorrect={false}
+          maxLength={30} erreur={erreurs.numero_document} testID="in-numero" />
+        <Champ etiquette={t('ins.parrain')} value={champs.code_parrainage} onChangeText={(v) => poser('code_parrainage')(normaliserCodeParrain(v))}
           autoCapitalize="characters" autoCorrect={false} maxLength={24} testID="in-parrain" />
-        <Texte doux taille={12.5} style={{ marginTop: -6 }}>{t('in.parrain_aide')}</Texte>
-        <Champ etiquette={t('in.telephone')} value={champs.telephone} onChangeText={poser('telephone')} keyboardType="phone-pad"
-          autoComplete="tel" maxLength={40} testID="in-telephone" />
-
-        <View style={{ gap: 7 }}>
-          <Etiquette>{t('in.pays')}</Etiquette>
-          <View style={{ flexDirection: 'row', gap: 8 }} accessibilityRole="radiogroup">
-            {PAYS.map((p) => (
-              <Pressable
-                key={p.code}
-                onPress={() => poser('pays')(p.code)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: champs.pays === p.code }}
-                style={{
-                  flex: 1,
-                  minHeight: 50,
-                  paddingHorizontal: 6,
-                  paddingVertical: 6,
-                  borderRadius: rayons.champ,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: champs.pays === p.code ? couleurs.nuit : couleurs.carte,
-                  borderWidth: 1,
-                  borderColor: champs.pays === p.code ? couleurs.nuit : couleurs.bord,
-                }}
-              >
-                <Texte gras taille={13} style={{ color: champs.pays === p.code ? '#ffffff' : couleurs.texte, textAlign: 'center' }} numberOfLines={2}>
-                  {t(p.cle)}
-                </Texte>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <Champ etiquette={t('in.ville')} value={champs.ville} onChangeText={poser('ville')} maxLength={80} testID="in-ville" />
+        <ChampChoix etiquette={t('ins.pays')} invite={t('ins.pays_choisir')} valeur={champs.pays} onChange={choisirPays}
+          erreur={erreurs.pays} testID="in-pays" options={PAYS.map((p) => ({ valeur: p, libelle: t('pays.' + p) }))} />
+        <ChampChoix etiquette={t('ins.region')} invite={t(champs.pays ? 'ins.region_choisir' : 'ins.region_pays')} valeur={champs.region}
+          onChange={choisirRegion} desactive={!champs.pays} erreur={erreurs.region} testID="in-region"
+          options={regions.map((r) => ({ valeur: r, libelle: r }))} />
+        {champs.pays === 'US' ? (
+          <Champ etiquette={t('ins.ville')} placeholder={t('ins.ville_saisir')} value={champs.ville_libre} onChangeText={poser('ville_libre')}
+            maxLength={80} erreur={erreurs.ville} testID="in-ville" />
+        ) : (
+          <>
+            <ChampChoix etiquette={t('ins.ville')} invite={t('ins.ville_choisir')} valeur={champs.ville} onChange={poser('ville')}
+              desactive={!communes} erreur={villeLibre ? undefined : erreurs.ville} testID="in-ville"
+              options={communes ? trier(communes).map((v) => ({ valeur: v, libelle: v })).concat([{ valeur: AUTRE, libelle: t('ins.ville_autre') }]) : []} />
+            {champs.ville === AUTRE ? (
+              <Champ placeholder={t('ins.ville_saisir')} value={champs.ville_libre} onChangeText={poser('ville_libre')}
+                maxLength={80} erreur={erreurs.ville} testID="in-ville-libre" />
+            ) : null}
+          </>
+        )}
+        <Champ etiquette={t('ins.adresse')} placeholder={t('ins.adresse_ph')} value={champs.adresse} onChangeText={poser('adresse')}
+          autoComplete="street-address" maxLength={200} erreur={erreurs.adresse} testID="in-adresse" />
+        <Champ etiquette={t('ins.tel')} placeholder={champs.pays ? TELEPHONE_EXEMPLE[champs.pays] : t('ins.tel_ph')} value={champs.telephone}
+          onChangeText={poser('telephone')} keyboardType="phone-pad" autoComplete="tel" maxLength={40}
+          erreur={erreurs.telephone} testID="in-telephone" />
+        <Champ etiquette={t('ins.email')} placeholder={t('ins.email_ph')} value={champs.email} onChangeText={poser('email')}
+          autoCapitalize="none" keyboardType="email-address" inputMode="email" autoComplete="email" erreur={erreurs.email}
+          maxLength={160} testID="in-email" />
+        <Champ etiquette={t('ins.mdp')} placeholder={t('ins.mdp_ph')} value={champs.motDePasse} onChangeText={poser('motDePasse')}
+          secureTextEntry autoCapitalize="none" autoComplete="new-password" textContentType="newPassword"
+          erreur={erreurs.motDePasse} testID="in-mdp" />
+        <Texte doux taille={12.5} style={{ marginTop: -6 }}>{t('ins.mdp_aide')}</Texte>
 
         {message ? (
           <View accessibilityLiveRegion="polite" testID={'in-' + message.type}
@@ -169,7 +224,7 @@ export default function Inscription() {
         {message && message.type === 'ok' ? (
           <Bouton titre={t('cx.connexion')} onPress={() => router.replace('/connexion')} style={{ marginTop: 6 }} />
         ) : (
-          <Bouton titre={t('in.creer')} onPress={creer} occupe={occupe} style={{ marginTop: 6 }} testID="in-creer" />
+          <Bouton titre={t('ins.creer')} onPress={creer} occupe={occupe} style={{ marginTop: 6 }} testID="in-creer" />
         )}
 
         <Pressable onPress={() => router.replace('/connexion')} style={{ alignItems: 'center', paddingVertical: 12 }} accessibilityRole="button">
