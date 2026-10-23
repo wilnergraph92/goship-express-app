@@ -10,7 +10,7 @@
     "updates": {
       "url": "https://u.expo.dev/4a861b01-820f-408e-9d24-88c2a3e528a5"
     },
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#ffffff",
@@ -86,7 +86,8 @@
           "defaultChannel": "colis"
         }
       ],
-      "./plugins/memoire-gradle"
+      "./plugins/memoire-gradle",
+      "./plugins/optimisation-android"
     ],
     "extra": {
       "router": {},
