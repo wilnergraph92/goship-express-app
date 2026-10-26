@@ -712,7 +712,10 @@ async function main() {
   const codeMarie = (await texte('av-code')).trim();
   await id('av-copier-code').click();
   verifier('copier le code : le presse-papiers le contient', await page.evaluate(() => navigator.clipboard.readText()), codeMarie);
-  verifier('la base a compté l\'invitation', await sql("select count(*) from parrainage_invitations where parrain_id = '" + MARIE + "';"), '1');
+  // L'écran note l'invitation après la copie, sans l'attendre : on laisse à la base le temps de l'écrire
+  const invitations = () => sql("select count(*) from parrainage_invitations where parrain_id = '" + MARIE + "';");
+  for (let i = 0; i < 40 && (await invitations()) === '0'; i++) await attendre(250);
+  verifier('la base a compté l\'invitation', await invitations(), '1');
   const offre = await sql("select id from points_offres where nom = 'Crédit d''essai';");
   await id('av-echanger-' + offre.trim()).click();
   await visible('av-message', 10000);
