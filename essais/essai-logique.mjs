@@ -106,7 +106,7 @@ verifier('aucun texte en dur « [à définir] » montré aux clients', Object.va
 console.log('E. Configuration et sécurité');
 const app = JSON.parse(lire('app.json')).expo;
 verifier('identifiants stables', [app.ios.bundleIdentifier, app.android.package, app.scheme], ['com.goshipexpress.app', 'com.goshipexpress.app', 'goshipexpress']);
-verifier('version et numéros de build', [app.version, typeof app.ios.buildNumber, typeof app.android.versionCode], ['1.0.0', 'string', 'number']);
+verifier('version et numéros de build', [app.version, typeof app.ios.buildNumber, typeof app.android.versionCode], ['1.0.1', 'string', 'number']);
 verifier('micro, superposition et stockage refusés sur Android', ['RECORD_AUDIO', 'SYSTEM_ALERT_WINDOW', 'READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE']
   .every((p) => app.android.blockedPermissions.includes('android.permission.' + p)), true);
 const camera = app.plugins.find((p) => Array.isArray(p) && p[0] === 'expo-camera')[1];

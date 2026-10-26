@@ -324,7 +324,7 @@ depuis `main`.
 Profils (`eas.json`) : `development` (APK de débogage, simulateur), `preview`
 (distribution interne), `production` (boutiques). Tous sur la base de production.
 Les numéros de build sont tenus par EAS (`appVersionSource: remote`,
-`autoIncrement`) : jamais deux fois le même. La version affichée (`1.0.0`) se change dans
+`autoIncrement`) : jamais deux fois le même. La version affichée (`1.0.1`) se change dans
 `app.json` (`expo.version`) à chaque version publiée.
 
 Signature : EAS crée et garde la clé Android (keystore) et les certificats Apple. Il faut
@@ -354,7 +354,7 @@ Apple) : elle prouve que le projet compile pour iPhone, elle ne s'installe pas.
 - **Ce qui passe par une mise à jour** : écrans, textes, couleurs, traductions, images,
   corrections dans le code JavaScript. **Ce qui demande une construction** : un module
   natif ajouté, une permission, l'icône, l'écran de démarrage, le nom, une version
-  d'Expo. Dans ce cas, augmenter d'abord `version` dans `app.json` (1.0.0 → 1.0.1) :
+  d'Expo. Dans ce cas, augmenter d'abord `version` dans `app.json` (1.0.1 → 1.0.2) :
   `runtimeVersion` suit la version (politique `appVersion`), si bien qu'une mise à jour
   ne va qu'aux constructions de la même version et n'atteint jamais un téléphone qui
   n'a pas le code natif qu'elle attend.

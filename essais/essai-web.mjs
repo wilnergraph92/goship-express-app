@@ -628,7 +628,7 @@ async function main() {
   for (const r of ['facebook', 'instagram', 'tiktok']) { await id('reseau-' + r).click(); await attendre(150); }
   verifier('suivez-nous : chaque logo ouvre la page de l\'entreprise', liensReseaux,
     ['https://www.facebook.com/goshipexpress', 'https://www.instagram.com/goshipexpressllc', 'https://www.tiktok.com/@goshipexpress.net']);
-  verifier('version affichée', ((await texte('compte-version')).match(/Version [\d.]+(?: \(\d+\))?/) || [''])[0], 'Version 1.0.0');
+  verifier('version affichée', ((await texte('compte-version')).match(/Version [\d.]+(?: \(\d+\))?/) || [''])[0], 'Version 1.0.1');
   await page.getByText('Langue').click();
   await id('langue-ht').click();
   await attendre(500);
@@ -712,7 +712,10 @@ async function main() {
   const codeMarie = (await texte('av-code')).trim();
   await id('av-copier-code').click();
   verifier('copier le code : le presse-papiers le contient', await page.evaluate(() => navigator.clipboard.readText()), codeMarie);
-  verifier('la base a compté l\'invitation', await sql("select count(*) from parrainage_invitations where parrain_id = '" + MARIE + "';"), '1');
+  // L'écran note l'invitation après la copie, sans l'attendre : on laisse à la base le temps de l'écrire
+  const invitations = () => sql("select count(*) from parrainage_invitations where parrain_id = '" + MARIE + "';");
+  for (let i = 0; i < 40 && (await invitations()) === '0'; i++) await attendre(250);
+  verifier('la base a compté l\'invitation', await invitations(), '1');
   const offre = await sql("select id from points_offres where nom = 'Crédit d''essai';");
   await id('av-echanger-' + offre.trim()).click();
   await visible('av-message', 10000);

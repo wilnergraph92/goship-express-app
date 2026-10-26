@@ -17,7 +17,8 @@ for m in re.finditer(r'^## ([^\n]+)$|^### ([^\n]+)\n```\n(.*?)\n```', texte, re.
         langue = m.group(1)
         rang = 0
         continue
-    cle, limite = LIMITES[rang]
+    # Les notes de chaque version s'empilent en fin de langue : toutes ont la limite des notes
+    cle, limite = LIMITES[min(rang, len(LIMITES) - 1)]
     rang += 1
     n = len(m.group(3))
     etat = 'OK ' if n <= limite else 'TROP'
