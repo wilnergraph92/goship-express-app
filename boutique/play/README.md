@@ -225,7 +225,7 @@ L'examen de Google prend en général de quelques heures à 7 jours.
 
   Les téléphones le reçoivent à la réouverture de l'application. Rien ne passe par Google.
 - **Un changement natif** (module, permission, icône, version d'Expo) :
-  1. augmentez `version` dans `app.json` (1.0.0 → 1.0.1) ;
+  1. augmentez `version` dans `app.json` (1.0.1 → 1.0.2) ;
   2. construisez avec le profil `production` ;
   3. envoyez le nouvel AAB dans la Play Console, ou avec `eas submit -p android --latest`.
 - **`eas submit` automatique** (facultatif) : il demande un compte de service Google Cloud,

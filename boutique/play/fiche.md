@@ -55,6 +55,11 @@ Aucune publicité, aucun pistage. Vos données servent à livrer vos colis, et �
 Pas encore client ? Créez votre compte dans l'application : votre adresse à Miami est prête tout de suite.
 ```
 
+### Notes de version (1.0.1)
+```
+Corrections de stabilité et mises à jour de sécurité. Les notifications de vos colis arrivent de façon plus fiable.
+```
+
 ### Notes de version (1.0.0)
 ```
 Première version de GoShip Express sur Google Play : votre adresse à Miami, le suivi de vos colis étape par étape, les pré-alertes avec scan du code-barres, les notifications, vos factures et l'historique de vos colis livrés.
@@ -105,6 +110,11 @@ ALSO
 No ads, no tracking. Your data is used to deliver your packages, and nothing else.
 
 Not a customer yet? Create your account in the app: your Miami address is ready right away.
+```
+
+### Release notes (1.0.1)
+```
+Stability fixes and security updates. Package notifications arrive more reliably.
 ```
 
 ### Release notes (1.0.0)
@@ -159,6 +169,11 @@ Sin publicidad, sin rastreo. Sus datos sirven para entregar sus paquetes, y para
 ¿Todavía no es cliente? Cree su cuenta en la aplicación: su dirección en Miami está lista al instante.
 ```
 
+### Notas de la versión (1.0.1)
+```
+Correcciones de estabilidad y actualizaciones de seguridad. Las notificaciones de sus paquetes llegan de forma más confiable.
+```
+
 ### Notas de la versión (1.0.0)
 ```
 La primera versión de GoShip Express en Google Play: su dirección en Miami, el seguimiento de sus paquetes paso a paso, las prealertas con escaneo del código de barras, las notificaciones, sus facturas y el historial de sus paquetes entregados.
@@ -209,6 +224,11 @@ EPI TOU
 Pa gen piblisite, pa gen swivi. Done ou yo sèvi pou livre koli ou yo, pa pou lòt bagay.
 
 Ou poko kliyan ? Kreye kont ou nan aplikasyon an : adrès ou nan Miami pare touswit.
+```
+
+### Nòt vèsyon an (1.0.1)
+```
+Korije estabilite ak mizajou sekirite. Notifikasyon koli ou yo rive pi byen.
 ```
 
 ### Nòt vèsyon an (1.0.0)

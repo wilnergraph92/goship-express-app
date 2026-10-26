@@ -9,7 +9,7 @@
 #  une couleur ou une correction.
 #
 #  Ce qui demande toujours une nouvelle construction (et, avant elle, la version
-#  de l'application augmentée dans app.json, par ex. 1.0.0 → 1.0.1) : un module
+#  de l'application augmentée dans app.json, par ex. 1.0.1 → 1.0.2) : un module
 #  natif ajouté, une permission, l'icône, l'écran de démarrage, une version
 #  d'Expo. La version fait office de « runtimeVersion » (app.json, politique
 #  appVersion) : une mise à jour ne va qu'aux constructions de la même version,

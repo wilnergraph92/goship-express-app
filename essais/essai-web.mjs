@@ -628,7 +628,7 @@ async function main() {
   for (const r of ['facebook', 'instagram', 'tiktok']) { await id('reseau-' + r).click(); await attendre(150); }
   verifier('suivez-nous : chaque logo ouvre la page de l\'entreprise', liensReseaux,
     ['https://www.facebook.com/goshipexpress', 'https://www.instagram.com/goshipexpressllc', 'https://www.tiktok.com/@goshipexpress.net']);
-  verifier('version affichée', ((await texte('compte-version')).match(/Version [\d.]+(?: \(\d+\))?/) || [''])[0], 'Version 1.0.0');
+  verifier('version affichée', ((await texte('compte-version')).match(/Version [\d.]+(?: \(\d+\))?/) || [''])[0], 'Version 1.0.1');
   await page.getByText('Langue').click();
   await id('langue-ht').click();
   await attendre(500);
