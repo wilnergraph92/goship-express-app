@@ -77,11 +77,11 @@ Chaque formulaire, avec la réponse qui correspond à ce que fait l'application.
 ### Règles de confidentialité
 URL :
 ```
-https://wilnergraph92.github.io/Goship-express-site/confidentialite.html
+https://goshipexpress.net/confidentialite
 ```
-Après la bascule du domaine, elle devient
-`https://goshipexpress.net/confidentialite.html`. Changez-la alors ici. Aucune nouvelle
-construction n'est nécessaire.
+C'est l'adresse du site depuis le 26/10/2026 (avant : GitHub Pages, qui reste en ligne).
+Si la fiche porte encore l'ancienne, changez-la ici ; aucune nouvelle construction n'est
+nécessaire.
 
 ### Accès à l'application
 « **Tout ou partie de la fonctionnalité est restreinte** ». Ajoutez des instructions avec un
@@ -138,7 +138,7 @@ Questions générales :
 |---|---|
 | Collectez-vous ou partagez-vous des données requises ? | **Oui** |
 | Toutes les données sont-elles chiffrées en transit ? | **Oui** (HTTPS vers Supabase) |
-| Comment demander la suppression des données ? | **Dans l'application** (Compte > Supprimer mon compte) **et par une URL** : `https://wilnergraph92.github.io/Goship-express-site/fermer-un-compte.html` |
+| Comment demander la suppression des données ? | **Dans l'application** (Compte > Supprimer mon compte) **et par une URL** : `https://goshipexpress.net/fermer-un-compte` |
 | Les comptes se créent-ils dans l'application ? | **Oui**, par e-mail et mot de passe, ou avec Google |
 
 Données **collectées**. Aucune n'est **partagée** : Supabase et Expo sont des prestataires qui
@@ -161,9 +161,9 @@ activité dans l'appli, informations de plantage, et l'identifiant publicitaire.
 
 ### Suppression du compte (URL demandée par Google)
 ```
-https://wilnergraph92.github.io/Goship-express-site/fermer-un-compte.html
+https://goshipexpress.net/fermer-un-compte
 ```
-Après la bascule : `https://goshipexpress.net/fermer-un-compte.html`.
+(Avant le 26/10/2026 : l'adresse GitHub Pages, qui reste en ligne.)
 
 ## 4. Fiche principale (Développer sa présence > Fiche principale du Play Store)
 
@@ -184,7 +184,7 @@ Après la bascule : `https://goshipexpress.net/fermer-un-compte.html`.
 | Tags | Livraison de colis, Suivi de colis, si la Console les propose |
 | E-mail | `goshipexpressllc@gmail.com` |
 | Téléphone | `+1 849 538 6262` |
-| Site web | `https://wilnergraph92.github.io/Goship-express-site/`, puis `https://goshipexpress.net/` après la bascule |
+| Site web | `https://goshipexpress.net/` |
 
 ## 5. Pays et prix
 

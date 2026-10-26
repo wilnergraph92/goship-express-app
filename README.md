@@ -222,10 +222,10 @@ Schéma `goshipexpress://` :
 | `goshipexpress://prealerte`, `…/colis`, `…/factures`, `…/compte`, `…/agences`, `…/historicite` | onglets et écrans |
 
 Sans session, le lien mène à la connexion, puis à son écran. Les liens `https://` du site
-(Universal Links, App Links) ne sont **pas** branchés : le site est servi sous
-`wilnergraph92.github.io/Goship-express-site/`, et ces liens demandent un fichier à la
-racine du domaine (`/.well-known/`), qui n'appartient pas à ce dépôt. À faire le jour où le
-site aura son propre domaine.
+(Universal Links, App Links) ne sont **pas** branchés. Depuis le 26/10/2026, le site a son
+propre domaine (`goshipexpress.net`) : c'est devenu possible, avec un fichier à la racine
+du site (`/.well-known/`, dépôt `Goship-express-site`) et une nouvelle construction de
+l'application.
 
 ## Réseau, erreurs, hors ligne
 
