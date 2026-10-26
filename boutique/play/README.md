@@ -104,7 +104,7 @@ nécessaire.
 « **Non, mon application ne contient pas d'annonces** ».
 
 ### Classification du contenu
-- E-mail de contact : `goshipexpressllc@gmail.com`.
+- E-mail de contact : `infos@goshipexpress.net` (depuis le 26/10/2026 ; avant : `goshipexpressllc@gmail.com`, qui reste le compte PayPal).
 - Catégorie : **Tous les autres types d'applications** (pas un jeu).
 - Réponses : **Non** à tout : violence, peur, sexualité, langage grossier, substances
   contrôlées, jeux d'argent, achats numériques.
@@ -182,7 +182,7 @@ https://goshipexpress.net/fermer-un-compte
 |---|---|
 | Catégorie | **Shopping**. Les clients achètent aux États-Unis et GoShip Express leur livre. **Affaires** convient aussi. |
 | Tags | Livraison de colis, Suivi de colis, si la Console les propose |
-| E-mail | `goshipexpressllc@gmail.com` |
+| E-mail | `infos@goshipexpress.net` |
 | Téléphone | `+1 849 538 6262` |
 | Site web | `https://goshipexpress.net/` |
 
