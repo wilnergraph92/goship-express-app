@@ -382,5 +382,85 @@ console.log('L. L\'inscription : les mêmes champs que le site (app/inscription.
     /numero_document/.test(lire('lib/coffre.js')) || /AsyncStorage[^\n]*numero_document/.test(ins), false);
 }
 
+console.log('M. Le jeton du téléphone ne tourne plus en boucle (lib/jeton-appareil.js)');
+{
+  const J = await module_('lib/jeton-appareil.js');
+  // Un faux module de notifications qui fait comme Android (PushTokenModule.kt) : chaque
+  // demande du jeton appareil le réémet aux écouteurs, juste après avoir répondu ;
+  // « tot » le réémet avant de répondre, l'autre ordre possible.
+  const fauxAndroid = (jeton, tot = false) => {
+    const ecouteurs = new Set();
+    const emettre = (t) => ecouteurs.forEach((f) => f({ type: 'android', data: t }));
+    const n = {
+      jeton, demandes: 0,
+      addPushTokenListener(f) { ecouteurs.add(f); return { remove: () => ecouteurs.delete(f) }; },
+      async getDevicePushTokenAsync() {
+        n.demandes += 1;
+        const t = n.jeton;
+        if (tot) emettre(t); else setTimeout(() => emettre(t), 0);
+        return { type: 'android', data: t };
+      },
+      async getExpoPushTokenAsync({ devicePushToken }) {
+        const d = devicePushToken || await n.getDevicePushTokenAsync();
+        return { data: `ExponentPushToken[${d.data}]` };
+      },
+      changer(t) { n.jeton = t; emettre(t); },
+    };
+    return n;
+  };
+  const attendre = () => new Promise((r) => setTimeout(r, 60));
+
+  // L'ancien code, pour prouver que le faux module reproduit bien la panne
+  {
+    const n = fauxAndroid('fcm-1');
+    let appels = 0;
+    const ancien = async () => { await n.getExpoPushTokenAsync({ projectId: 'p' }); appels += 1; };
+    const ecoute = n.addPushTokenListener(() => { ancien(); });
+    await ancien();
+    await attendre();
+    ecoute.remove();
+    await attendre();
+    verifier('l\'ancien écouteur réenregistrait le téléphone sans fin (plus de 10 fois en 60 ms)', appels > 10, true);
+  }
+
+  // Le code de l'application : enregistrer() = jetonExpo() puis enregistrer_appareil
+  for (const tot of [false, true]) {
+    J.oublierJetonAppareil();
+    const n = fauxAndroid('fcm-1', tot);
+    const enregistres = [];
+    const enregistrer = async () => { enregistres.push(await J.jetonExpo(n, 'p')); };
+    const ecoute = J.ecouterJetonAppareil(n, () => { enregistrer(); });
+    await enregistrer();
+    await attendre();
+    const ordre = tot ? 'écho avant la réponse' : 'écho après la réponse';
+    verifier(`${ordre} : le téléphone est enregistré ${tot ? 'au plus deux fois' : 'une seule fois'}`,
+      enregistres.length <= (tot ? 2 : 1) && enregistres.length >= 1, true);
+    verifier(`${ordre} : avec le bon jeton Expo`, enregistres.every((j) => j === 'ExponentPushToken[fcm-1]'), true);
+    const avant = enregistres.length;
+    n.changer('fcm-2');
+    await attendre();
+    verifier(`${ordre} : un vrai nouveau jeton est enregistré une fois, sans boucle`,
+      [enregistres.length - avant, enregistres[enregistres.length - 1]], [1, 'ExponentPushToken[fcm-2]']);
+    ecoute.remove();
+  }
+
+  // Expo ne redemande pas le jeton appareil : un seul écho par enregistrement
+  {
+    J.oublierJetonAppareil();
+    const n = fauxAndroid('fcm-1');
+    await J.jetonExpo(n, 'p');
+    verifier('le jeton appareil n\'est demandé qu\'une fois par enregistrement', n.demandes, 1);
+  }
+
+  // Déconnexion puis reconnexion : le même jeton se réenregistre pour le nouveau compte
+  J.oublierJetonAppareil();
+  verifier('après oublierJetonAppareil, le même jeton est de nouveau « nouveau »',
+    [J.retenirJetonAppareil('fcm-1'), J.retenirJetonAppareil('fcm-1')], [true, false]);
+  verifier('un jeton vide n\'est jamais « nouveau »', [J.retenirJetonAppareil(''), J.retenirJetonAppareil(null)], [false, false]);
+  verifier('lib/notifications.js passe par lib/jeton-appareil.js (plus d\'appel direct à addPushTokenListener)',
+    [/addPushTokenListener/.test(lire('lib/notifications.js')), lire('lib/notifications.js').includes('ecouterJetonAppareil(Notifications'),
+     lire('lib/notifications.js').includes('oublierJetonAppareil()')], [false, true, true]);
+}
+
 console.log(`${resultats.length} vérifications, ${resultats.filter(Boolean).length} réussies.`);
 process.exit(resultats.every(Boolean) ? 0 : 1);
