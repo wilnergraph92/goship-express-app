@@ -39,7 +39,7 @@ export default {
   telephone: '+18495386262',
   telephoneAffiche: '+1 849 538-6262',
   whatsapp: '18495386262',
-  email: 'goshipexpressllc@gmail.com',
+  email: 'infos@goshipexpress.net',
   horaires: 'Lun–Sam · 8h–18h',
 
   // Pages de l'entreprise sur les réseaux sociaux (écran Compte, « Suivez-nous »),
