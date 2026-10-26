@@ -34,7 +34,7 @@ let juges = 0;
 for (const f of fichiers) {
   const t = fs.readFileSync(f).toString('latin1');
   // On ne juge que les paquets qui portent la configuration (config.js : l'adresse du site)
-  if (!t.includes('wilnergraph92.github.io/Goship-express-site')) continue;
+  if (!t.includes('https://goshipexpress.net/')) continue;
   juges += 1;
   const constats = {
     production: t.includes(PROD),

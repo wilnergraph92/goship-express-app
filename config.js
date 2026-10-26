@@ -33,7 +33,7 @@ export default {
   ...serveur,
 
   // Le site : pages de réinitialisation du mot de passe et de fermeture du compte
-  siteUrl: 'https://wilnergraph92.github.io/Goship-express-site/',
+  siteUrl: 'https://goshipexpress.net/',
 
   // Coordonnées affichées dans l'application
   telephone: '+18495386262',
