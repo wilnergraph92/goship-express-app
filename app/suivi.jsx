@@ -5,18 +5,24 @@
 // (suivre_colis, comme le formulaire « Où est mon colis ? ») — statut et étapes
 // publiques seulement, sans nom, description, note ni prix.
 // Utilisé par l'accueil, le scanner et les liens goshipexpress://suivi?numero=…
+//
+// Un numéro de commande (Amazon) ou de transporteur pas encore chez nous (suivi universel,
+// Phase 5) : l'écran ne montre RIEN du suivi externe, comme la page publique du site ; il
+// dit quoi faire (un numéro de commande ne se suit pas ; un numéro de transporteur s'annonce
+// dans « Mes colis en route », où son suivi s'affiche une fois connecté).
 
 import { useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import EnTete from '../components/EnTete';
 import { couleurs, rayons, ombres, STATUTS } from '../lib/theme';
-import { Titre, Texte, Mono, Chargement, EtatErreur, Vide } from '../components/ui';
+import { Titre, Texte, Mono, Chargement, EtatErreur, Vide, Bouton } from '../components/ui';
 import { FriseLegendee } from '../components/colis';
 import { useLangue } from '../lib/i18n';
 import { useDonnees } from '../lib/useDonnees';
 import { trouverMonColis, suivreColis } from '../lib/api';
 import { dateRelative, libelleStatut, libelleService } from '../lib/format';
+import { natureNumero, ressembleSuiviTransporteur } from '../lib/suivi-externe';
 
 export default function Suivi() {
   const { numero } = useLocalSearchParams();
@@ -25,10 +31,13 @@ export default function Suivi() {
 
   const { donnees, erreur, recharger, rafraichit, tirer, chargement } = useDonnees(async () => {
     if (reference.length < 4) return { introuvable: true };
+    // Un numéro de commande ne se suit nulle part : on le dit sans rien chercher
+    if (natureNumero(reference) === 'commande') return { commande: true };
     const mien = await trouverMonColis(reference);
     if (mien) return { mien };
     const publique = await suivreColis(reference);
-    return publique ? { publique } : { introuvable: true };
+    if (publique) return { publique };
+    return ressembleSuiviTransporteur(reference) ? { transporteur: true } : { introuvable: true };
   }, [reference]);
 
   useEffect(() => {
@@ -45,6 +54,17 @@ export default function Suivi() {
         <Chargement />
       ) : !donnees ? (
         <EtatErreur erreur={erreur} onReessayer={recharger} />
+      ) : donnees.commande ? (
+        <View testID="suivi-commande">
+          <Vide icone="file-text" titre={t('suivi.commande_titre')} texte={t('suivi.commande_texte')} />
+        </View>
+      ) : donnees.transporteur ? (
+        <View testID="suivi-transporteur">
+          <Vide icone="truck" titre={t('suivi.transporteur_titre')} texte={t('suivi.transporteur_texte')}>
+            <Bouton titre={t('suivi.transporteur_bouton')} icone="plus" testID="suivi-annoncer"
+              onPress={() => router.push({ pathname: '/(onglets)/prealerte', params: { suivi: reference } })} />
+          </Vide>
+        </View>
       ) : donnees.introuvable ? (
         <View testID="suivi-introuvable">
           <Vide icone="search" titre={reference || '—'} texte={t('su.introuvable')} />

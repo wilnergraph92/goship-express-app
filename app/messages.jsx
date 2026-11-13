@@ -53,7 +53,8 @@ export default function Messages() {
                   <View style={{ flex: 1 }}>
                     <Texte gras taille={13.5}>
                       {STATUTS_CONNUS.indexOf(m.evenement) >= 0 ? libelleStatut(m.evenement, langue)
-                        : m.evenement === 'bienvenue' ? t('msg.bienvenue') : t('msg.autre')}
+                        : m.evenement === 'bienvenue' ? t('msg.bienvenue')
+                          : /^carrier_(delivered|issue|invalid)$/.test(m.evenement) ? t('msg.' + m.evenement) : t('msg.autre')}
                     </Texte>
                     <Texte doux taille={12}>
                       {[t('msg.' + m.canal), m.numero, dateRelative(m.envoye_le, langue)].filter(Boolean).join(' · ')}
