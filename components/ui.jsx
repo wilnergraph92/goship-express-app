@@ -5,6 +5,7 @@ import { Text, View, Pressable, TextInput, ActivityIndicator, StyleSheet, Modal,
 import { Feather } from '@expo/vector-icons';
 import { couleurs, polices, rayons, ombres } from '../lib/theme';
 import { useLangue } from '../lib/i18n';
+import { heure } from '../lib/format';
 import { classer, messageErreur } from '../lib/erreurs';
 
 export function Titre({ children, style, taille = 22, couleur = couleurs.texte, ...reste }) {
@@ -313,17 +314,22 @@ export function EtatErreur({ erreur, onReessayer, titre }) {
 }
 
 // Des données sont affichées, mais la dernière mise à jour a échoué
-export function Bandeau({ erreur, onReessayer }) {
+// depuis (facultatif) : l'heure de la dernière lecture réussie, dite hors ligne
+// (« Hors ligne — informations de 14:32 »)
+export function Bandeau({ erreur, onReessayer, depuis }) {
   const { t } = useLangue();
   if (!erreur) return null;
   const c = classer(erreur);
   const horsLigne = c.type === 'reseau' || c.type === 'delai';
+  const texte = horsLigne
+    ? (depuis && heure(depuis) ? t('etat.perimee_heure', { heure: heure(depuis) }) : t('etat.perimee'))
+    : messageErreur(erreur, t);
   return (
     <Pressable onPress={onReessayer} accessibilityRole="button" style={styles.bandeau} testID="bandeau-erreur"
-      accessibilityLabel={(horsLigne ? t('etat.perimee') : messageErreur(erreur, t)) + ' ' + t('gen.reessayer')}>
+      accessibilityLabel={texte + ' ' + t('gen.reessayer')}>
       <Feather name={horsLigne ? 'wifi-off' : 'alert-triangle'} size={16} color="#8a4b00" />
       <Texte taille={12.5} style={{ flex: 1, color: '#6b3a00', lineHeight: 18 }}>
-        {horsLigne ? t('etat.perimee') : messageErreur(erreur, t)}
+        {texte}
       </Texte>
       {onReessayer ? <Feather name="refresh-cw" size={15} color="#8a4b00" /> : null}
     </Pressable>

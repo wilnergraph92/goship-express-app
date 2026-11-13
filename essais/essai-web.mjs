@@ -270,6 +270,15 @@ async function main() {
   verifier('par le suivi du vendeur : son colis', await visible('detail-statut') && (await texte('detail-numero')), 'GSE-1006-HT');
   await aller('/suivi?numero=GSE-9999-HT');
   verifier('numéro inconnu : message', await visible('suivi-introuvable'), true);
+  // Suivi universel, Phase 5 : rien d'externe sur cet écran, seulement quoi faire
+  await aller('/suivi?numero=112-1234567-1234567');
+  verifier('numéro de commande Amazon : signalé, sans recherche', await visible('suivi-commande'), true);
+  await aller('/suivi?numero=GFUS01000000000777');
+  verifier('numéro de transporteur pas encore chez nous : « annoncer cet achat »',
+    [await visible('suivi-transporteur'), await visible('suivi-annoncer', 1000)], [true, true]);
+  await id('suivi-annoncer').click();
+  verifier('… qui ouvre le formulaire, numéro rempli', [await visible('pa-suivi'), await id('pa-suivi').inputValue()],
+    [true, 'GFUS01000000000777']);
 
   console.log('F. Pré-alerte');
   const nbPrealertes = async () => Number(await sql(`select count(*) from prealertes where client_id = '${MARIE}';`));
@@ -342,13 +351,67 @@ async function main() {
     ['Vérifiez votre connexion Internet, puis réessayez.', 1]);
   await context_offline(contexte, false);
   n0 = await nbPrealertes();
-  await id('pa-supprimer').first().click();
-  await id('pa-supprimer-oui').click();
-  await visible('pa-message-ok');
-  verifier('supprimer (avec confirmation)', await nbPrealertes() - n0, -1);
+  // Supprimer : depuis l'écran de l'achat (suivi universel, Phase 5), avec confirmation
+  await aller('/prealerte?vue=liste');
+  await visible('achat-carte');
+  await id('achat-carte').first().click();
+  await visible('achat-supprimer');
+  await id('achat-supprimer').click();
+  await id('achat-supprimer-oui').click();
+  await visible('pa-liste');
+  await attendre(800);
+  verifier('supprimer (avec confirmation, depuis l\'achat)', await nbPrealertes() - n0, -1);
   await aller('/prealerte?suivi=TBA12340000');
   await visible('pa-suivi');
   verifier('code renvoyé par le scanner : prérempli', await id('pa-suivi').inputValue(), 'TBA12340000');
+
+  console.log('F2. Mes colis en route (suivi universel, Phase 5)');
+  // Un vrai suivi de transporteur, posé dans la base d'essai comme le moteur le rangerait :
+  // 17TRACK VERIFIED et en service, un achat de Marie suivi chez GOFO, deux événements
+  await sql(`update fournisseurs_suivi set conformite = 'VERIFIED', actif = true, essai = false where code = '17track';`);
+  await commeClient(MARIE, "select public.creer_prealerte(null, 'SHEIN', 'Robe d''été', 'GFUS01000000000888', 24, 'aerien')::text;");
+  await sql(`with s as (insert into suivis_externes (numero, transporteur, fournisseur, etat, statut, dernier_lieu,
+               dernier_evenement_le, derniere_synchro_le, livraison_estimee_le)
+             values ('GFUS01000000000888', 'gofo', '17track', 'actif', 'IN_TRANSIT', 'Doral, FL, US',
+                     now() - interval '3 hours', now() - interval '2 hours', (now() + interval '2 days')::date)
+             on conflict (numero) do update set statut = excluded.statut returning id),
+             e as (insert into suivis_externes_evenements (suivi_id, survenu_le, statut, description, lieu, pays, empreinte)
+               select s.id, x.quand, 'IN_TRANSIT', x.texte, x.lieu, 'US', x.cle from s,
+                 (values (now() - interval '20 hours', 'Departed facility', 'Ontario, CA, US', 'essai-web-1'),
+                         (now() - interval '3 hours', 'Arrived at facility', 'Doral, FL, US', 'essai-web-2')) x(quand, texte, lieu, cle)
+               on conflict do nothing returning 1)
+             update prealertes set suivi_externe_id = (select id from s) where suivi_transporteur = 'GFUS01000000000888';`);
+  const attendus = JSON.parse(await commeClient(MARIE, 'select public.mes_suivis_externes()::text;')).achats;
+  await aller('/prealerte?vue=liste');
+  await visible('achat-carte');
+  verifier('autant de cartes que d\'achats rendus par la base', await id('achat-carte').count(), attendus.length);
+  verifier('l\'onglet le dit', await texte('pa-vue-liste'), `Mes achats (${attendus.length})`);
+  const carte = id('achat-carte').filter({ hasText: 'SHEIN — Robe d\'été' });
+  verifier('la carte : statut en clair, transporteur, dernier lieu, badge',
+    ((await carte.textContent()) || '').replace(/\s+/g, ' '),
+    'SHEIN — Robe d\'étéEn routeGFUS01000000000888En route vers MiamiGOFO · Doral, FL, US');
+  await capture('08-mes-achats');
+  await id('pa-chercher').fill('robe d ete');
+  await attendre(300);
+  verifier('recherche sans accents', await id('achat-carte').count(), 1);
+  await id('pa-chercher').fill('');
+  await carte.click();
+  await visible('achat-statut');
+  verifier('détail : statut, transporteur, date prévue, fraîcheur',
+    [await texte('achat-statut'), await texte('achat-transporteur'), /^Livraison prévue par le transporteur : \d\d\/\d\d\/\d{4}$/.test(await texte('achat-livraison')),
+     await texte('achat-maj')],
+    ['En route vers Miami', 'Transporteur : GOFO', true, 'Mis à jour il y a 2 h']);
+  verifier('la chronologie, du plus récent au plus ancien, avec sa source',
+    [await page.locator('[data-testid="achat-evenement"]').allTextContents(), await texte('achat-source')],
+    [['Arrived at facility', 'Departed facility'], 'Informations du transporteur, via 17TRACK. GoShip ne les modifie pas.']);
+  await capture('09-achat');
+  // Livré par le transporteur : jamais « reçu »
+  await sql(`update suivis_externes set statut = 'DELIVERED' where numero = 'GFUS01000000000888';`);
+  await page.reload();
+  await visible('achat-statut');
+  verifier('livré par le transporteur : « en attente de réception », jamais « reçu »', await texte('achat-statut'),
+    'Livré par GOFO — en attente de réception à l\'entrepôt GoShip');
+  await sql(`update fournisseurs_suivi set actif = false, essai = true, conformite = 'PENDING_VERIFICATION' where code = '17track';`);
 
   console.log('G. Factures, paiements, solde : les valeurs de la base');
   const factures = JSON.parse(await commeClient(MARIE, 'select public.mes_factures()::text;'));

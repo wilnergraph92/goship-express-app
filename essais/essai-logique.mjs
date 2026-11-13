@@ -99,6 +99,14 @@ const dynamiques = [
   ...['recu', 'emballe', 'embarque', 'distribution', 'succursale', 'disponible', 'livre', 'incident'].map((x) => 'statut.' + x),
   ...[1, 2, 3, 4, 5, 6, 7].map((x) => 'etape.' + x),
   ...E.CODES_METIER.map((x) => 'err.' + x),
+  // Mes colis en route (Phase 5) : les statuts du transporteur, les codes de la base, les badges, les filtres
+  ...['PENDING', 'INFO_RECEIVED', 'IN_TRANSIT', 'CUSTOMS', 'OUT_FOR_DELIVERY', 'AVAILABLE_FOR_PICKUP', 'DELIVERED',
+    'FAILED_ATTEMPT', 'EXCEPTION', 'RETURNED', 'EXPIRED', 'NOT_FOUND', 'inconnu', 'DELIVERED_par'].map((x) => 'er.statut.' + x),
+  ...['NO_TRACKING', 'ORDER_NUMBER_DETECTED', 'INVALID_TRACKING', 'PENDING_FIRST_SCAN', 'CARRIER_UNKNOWN',
+    'UNSUPPORTED_TRACKING', 'AMAZON_TBA_LIMITATION', 'PROVIDER_UNAVAILABLE', 'TRACKING_EXPIRED'].map((x) => 'er.message.' + x),
+  ...['attente', 'livre', 'recu', 'info'].map((x) => 'er.badge.' + x),
+  ...['tous', 'attente', 'livre', 'recu', 'info'].map((x) => 'er.filtre.' + x),
+  ...['carrier_delivered', 'carrier_issue', 'carrier_invalid'].map((x) => 'msg.' + x),
 ];
 verifier('toute clé composée (états, moyens, statuts, codes) existe', dynamiques.filter((k) => !T[k]), []);
 verifier('aucun texte en dur « [à définir] » montré aux clients', Object.values(T).some((v) => /\[.*(définir|defined).*\]/i.test(v.fr + v.en)), false);
@@ -460,6 +468,46 @@ console.log('M. Le jeton du téléphone ne tourne plus en boucle (lib/jeton-appa
   verifier('lib/notifications.js passe par lib/jeton-appareil.js (plus d\'appel direct à addPushTokenListener)',
     [/addPushTokenListener/.test(lire('lib/notifications.js')), lire('lib/notifications.js').includes('ecouterJetonAppareil(Notifications'),
      lire('lib/notifications.js').includes('oublierJetonAppareil()')], [false, true, true]);
+}
+
+console.log('N. Mes colis en route : lire la réponse de la base (lib/suivi-externe.js)');
+{
+  const X = await module_('lib/suivi-externe.js');
+  const tr = (cle, r) => { let v = (T[cle] || {}).fr || cle; Object.keys(r || {}).forEach((k) => { v = v.split('{' + k + '}').join(String(r[k])); }); return v; };
+  const achat = (a) => ({ id: 'x', magasin: 'SHEIN', description: 'Robe', statut: 'attente', numero_suivi: 'GFUS01', colis: null, message: null, suivi: null, ...a });
+  const suivi = (statut, nom) => ({ statut, transporteur_nom: nom || null, evenements: [] });
+  verifier('états : en route, livré par le transporteur, arrivé, à vérifier (numéro refusé, incident)',
+    [X.etatAchat(achat({ suivi: suivi('IN_TRANSIT') })), X.etatAchat(achat({ suivi: suivi('DELIVERED') })),
+     X.etatAchat(achat({ statut: 'recu', colis: { numero: 'GSE-1001-HT' } })), X.etatAchat(achat({ message: 'INVALID_TRACKING' })),
+     X.etatAchat(achat({ suivi: suivi('EXCEPTION') })), X.etatAchat(achat({ message: 'UNSUPPORTED_TRACKING' }))],
+    ['attente', 'livre', 'recu', 'info', 'info', 'attente']);
+  verifier('« livré » n\'est jamais « reçu » : le transporteur nommé, l\'entrepôt GoShip attendu',
+    X.phraseStatut(suivi('DELIVERED', 'GOFO'), tr), 'Livré par GOFO — en attente de réception à l\'entrepôt GoShip');
+  verifier('pas encore de statut : en attente des premières nouvelles ; statut inconnu : jamais inventé',
+    [X.phraseStatut(suivi(null), tr), X.phraseStatut(suivi('BIZARRE'), tr)],
+    ['En attente des premières nouvelles du transporteur', 'Statut non reconnu : voir le détail du transporteur']);
+  verifier('le nom d\'un achat', [X.titreAchat(achat({})), X.titreAchat(achat({ magasin: '', description: 'Robe' }))], ['SHEIN — Robe', 'Robe']);
+  const liste = [achat({ id: '1', suivi: suivi('IN_TRANSIT', 'GOFO') }), achat({ id: '2', magasin: 'Amazon', description: 'Écouteurs', numero_suivi: 'TBA312', suivi: suivi('DELIVERED') }),
+    achat({ id: '3', magasin: 'Temu', statut: 'recu', colis: { numero: 'GSE-1001-HT' } }), achat({ id: '4', magasin: 'Nike', message: 'INVALID_TRACKING' })];
+  verifier('filtres', ['tous', 'attente', 'livre', 'recu', 'info'].map((f) => X.filtrerAchats(liste, f).map((a) => a.id).join('')),
+    ['1234', '1', '2', '3', '4']);
+  verifier('recherche : magasin, contenu sans accents, numéro, colis GoShip, transporteur',
+    ['amazon', 'ecouteurs', 'tba 312', 'gse-1001', 'gofo'].map((q) => X.filtrerAchats(liste, 'tous', q).map((a) => a.id).join('')),
+    ['2', '2', '2', '3', '1']);
+  verifier('compter par état', X.compterAchats(liste), { tous: 4, attente: 1, livre: 1, recu: 1, info: 1 });
+  verifier('numéro de commande Amazon, numéro GoShip, suivi ordinaire',
+    ['112-1234567-1234567', 'GSE-1001-HT', 'GFUS01000000000101'].map(X.natureNumero), ['commande', 'goship', '']);
+  verifier('forme d\'un suivi de transporteur (même règle que la page publique du site)',
+    ['GFUS01000000000777', 'ABCDEF', 'GSE-1001-HT', '1Z999AA10123456784'].map(X.ressembleSuiviTransporteur), [true, false, false, true]);
+  const t0 = Date.parse('2026-11-13T12:00:00Z');
+  verifier('fraîcheur : minutes, heures, puis la date (null)',
+    [X.depuis('2026-11-13T11:48:00Z', tr, t0), X.depuis('2026-11-13T09:00:00Z', tr, t0), X.depuis('2026-11-11T09:00:00Z', tr, t0)],
+    ['Mis à jour il y a 12 min', 'Mis à jour il y a 3 h', null]);
+  verifier('une date seule lue à midi (jamais la veille en Haïti)', [X.dateSeule('2026-11-14'), X.dateSeule('n/a')], ['2026-11-14T12:00:00', '']);
+  verifier('aucune décision métier : ni requête, ni statut GoShip écrit',
+    /supabase|rpc\(|from\(|insert|update/.test(lire('lib/suivi-externe.js').replace(/\/\/.*$/gm, '')), false);
+  verifier('une notification d\'un transporteur ouvre « Mes achats »',
+    lire('lib/notifications.js').includes("'/(onglets)/prealerte?vue=liste'"), true);
 }
 
 console.log(`${resultats.length} vérifications, ${resultats.filter(Boolean).length} réussies.`);

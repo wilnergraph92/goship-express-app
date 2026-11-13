@@ -70,6 +70,7 @@ function Aiguillage() {
       <Stack.Screen name="connexion" options={{ gestureEnabled: false }} />
       <Stack.Screen name="inscription" />
       <Stack.Screen name="colis/[id]" />
+      <Stack.Screen name="achat/[id]" />
       <Stack.Screen name="facture/[id]" />
       <Stack.Screen name="suivi" />
       <Stack.Screen name="agences" />

@@ -46,6 +46,8 @@ session) et l'état local des écrans. Aucune base locale.
 | `app/(onglets)/` | Accueil, Mes colis, Pré-alerte (bouton orange), Factures, Compte. L'accueil suit le téléphone du site (`outils/ecrans-app/ecrans.py` du dépôt du site) : adresse de Miami, compteurs, deux derniers colis **non livrés** (avec le suivi du vendeur) ; la pré-alerte par le « + » orange |
 | `app/historicite.jsx` | Compte > Historicité : tous les colis livrés du client, les plus récents d'abord, avec la date de livraison, une recherche et des pages de 20 |
 | `app/colis/[id].jsx` | Détail d'un colis et ses étapes (événements réels), disposé comme le téléphone du site |
+| `app/(onglets)/prealerte.jsx` | Onglet « Mes colis en route » (le « + » orange) : « Annoncer un achat » (le formulaire, vue par défaut) et « Mes achats » (`?vue=liste`) — les achats annoncés et ce qu'en dit leur transporteur, recherche et filtres |
+| `app/achat/[id].jsx` | Un achat annoncé : statut du transporteur en clair, transporteur, dernier lieu, date prévue s'il la donne, fraîcheur, chronologie et sa source ; « Supprimer cet achat » |
 | `app/messages.jsx` | Les derniers messages reçus (e-mail, WhatsApp, notification), ouverts par la cloche de l'accueil |
 | `app/facture/[id].jsx` | Une facture : lignes, paiements reçus, total, payé, solde |
 | `app/suivi.jsx` | Suivre un numéro (scanner, lien) : son colis, sinon le suivi public du site |
@@ -58,6 +60,7 @@ session) et l'état local des écrans. Aucune base locale.
 | `lib/erreurs.js` | Classe les erreurs (réseau, délai, session, refus, métier…), journal sans secret |
 | `lib/useDonnees.js` | Chargement d'un écran : chargement, erreur, données périmées, session |
 | `lib/validation.js` | Vérifications de la pré-alerte avant l'envoi (la base revérifie) |
+| `lib/suivi-externe.js` | Mes colis en route : traduire les codes de la base en phrases, l'état d'une carte, filtres et recherche, numéro de commande (aucune décision, aucune requête) |
 | `lib/scan-parser.js` | **Copie à l'identique** du lecteur de codes du site (`assets/js/scan-parser.js`) |
 | `lib/notifications.js` | Jeton du téléphone, état réel des notifications, ouverture d'une notification |
 | `lib/i18n.js` | Textes en français, anglais, espagnol et créole (tous les écrans) |
@@ -119,7 +122,8 @@ propre compte (`client_id`).
 | Compte > Historicité | table `colis` filtrée sur `livre`, avec l'étape « livré » (`colis_historique`, filtrée sur la table liée) pour la date de livraison ; pages de 20, recherche par la base |
 | Détail, étapes | `colis` + `colis_historique` (étapes publiques ; une étape corrigée disparaît) |
 | Suivi d'un numéro | son colis, sinon `suivre_colis()` (suivi public du site) |
-| Pré-alerte | `creer_prealerte()` (validation, doublons, clé d'envoi) ; liste : table `prealertes` |
+| Pré-alerte | `creer_prealerte()` (validation, doublons, clé d'envoi) ; suppression : table `prealertes` |
+| Mes colis en route (achats annoncés, suivi du transporteur) | `mes_suivis_externes()` — la même lecture que l'espace client du site : les pré-alertes du compte, et rien d'un fournisseur de suivi pas encore vérifié. « Livré » par le transporteur n'est jamais « reçu ». Les notifications des transporteurs (`carrier_*`) ouvrent la liste |
 | Factures, paiements, solde | `mes_factures()` (total, payé, solde, état, lignes, paiements) et `mon_resume()` |
 | Rôle | `mes_permissions()` (affichage seulement) |
 | Téléphone | `enregistrer_appareil()` ; à la déconnexion, suppression de son jeton |
